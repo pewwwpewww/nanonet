@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+def normalize(name):
+	if len(name) > 12:
+		return name[-12:]
+	return name
+
 class Node(object):
 	def __init__(self, name):
 		self.name = name
@@ -35,13 +40,13 @@ class Topo(object):
 		pass
 
 	def add_node(self, name):
-		n = Node(name)
+		n = Node(normalize(name))
 		self.nodes.add(n)
 		return n
 
 	def get_node(self, name):
 		for n in self.nodes:
-			if n.name == name:
+			if n.name == normalize(name):
 				return n
 
 		return None
@@ -55,9 +60,12 @@ class Topo(object):
 		node1.add_intf(port1)
 		node2.add_intf(port2)
 
-		e = Edge(node1, node2, port1, port2, cost)
+		e = Edge(node1, node2, port1, port2, int(cost))
 		self.edges.append(e)
 		return e
+
+	def add_link_name(self, name1, name2, *args, **kwargs):
+		return self.add_link(self.get_node(name1), self.get_node(name2), *args, **kwargs)
 
 	def get_edges(self, node1, node2):
 		res = []

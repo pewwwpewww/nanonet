@@ -35,7 +35,8 @@ class TestTopo(Topo):
 
 topo = TestTopo()
 
-net = Nanonet(topo, V6Net('fc00:1::', 32, 64), V6Net('fc00:2::', 32, 64))
+#net = Nanonet(topo, V6Net('fc00:1::', 32, 64), V6Net('fc00:2::', 32, 64))
+net = Nanonet(topo)
 net.start()
 
 debug=True
