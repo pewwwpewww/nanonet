@@ -36,11 +36,17 @@ class TestTopo(Topo):
 topo = TestTopo()
 
 #net = Nanonet(topo, V6Net('fc00:1::', 32, 64), V6Net('fc00:2::', 32, 64))
-net = Nanonet(topo)
-net.start()
+#net = Nanonet(topo)
+#net.start()
+net = Nanonet.load('nano.net')
+#net.dump_commands()
 
-debug=True
-if debug:
+#t, edge, rm_routes, chg_routes = net.igp_prepare_link_down("salt", "seat")
+#net.apply_topo(t)
+#net.igp_apply_link_down(edge, rm_routes, chg_routes)
+
+#debug=True
+#if debug:
 #	dist, path = topo.dijkstra(topo.get_node("seat"))
 
 #	for n in dist.keys():
@@ -51,7 +57,7 @@ if debug:
 #	for e in topo.edges:
 #		print '%s[%d] - %s[%d]: %s - %s' % (e.node1.name, e.port1, e.node2.name, e.port2, e.node1.intfs_addr[e.port1], e.node2.intfs_addr[e.port2])
 
-	print
+#	print
 
-	for n in topo.nodes:
-		print '# %s loop: %s' % (n.name, n.addr)
+for n in net.topo.nodes:
+	print '# %s loop: %s' % (n.name, n.addr)

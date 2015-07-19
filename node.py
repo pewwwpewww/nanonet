@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+from route import *
+import copy
+
 def normalize(name):
 	if len(name) > 12:
 		return name[-12:]
@@ -13,7 +16,7 @@ class Node(object):
 		self.intfs_addr = {}
 		self.addr = None
 
-		self.routes = {}
+		self.routes = []
 
 	def add_intf(self, intf):
 		self.intfs.append(intf)
@@ -22,6 +25,12 @@ class Node(object):
 		i = self.cur_intf
 		self.cur_intf += 1
 		return i
+
+	def __hash__(self):
+		return self.name.__hash__()
+
+	def __eq__(self, o):
+		return self.name == o.name
 
 class Edge(object):
 	def __init__(self, node1, node2, port1, port2, cost):
@@ -35,6 +44,26 @@ class Topo(object):
 	def __init__(self):
 		self.nodes = set()
 		self.edges = list()
+
+	def copy(self):
+		t = Topo()
+		t.nodes = copy.deepcopy(self.nodes)
+		t.edges = copy.deepcopy(self.edges)
+
+		for e in t.edges:
+			e.node1 = t.get_node(e.node1.name)
+			e.node2 = t.get_node(e.node2.name)
+
+		return t
+
+	def copy_unit(self):
+		t = self.copy()
+
+		for e in t.edges:
+			e.cost = 1
+
+		t.compute()
+		return t
 
 	def build(self):
 		pass
@@ -99,6 +128,22 @@ class Topo(object):
 
 		return res
 
+#	def get_min_neighbors(self, n):
+#		res = set()
+#
+#		mcost = 2**32
+#		neighs = self.get_neighbors(n)
+#
+#		for neigh in neighs:
+#			e = self.get_minimal_edge(n, neigh)
+#			if e.cost < mcost:
+#				mcost = e.cost
+#
+#		for neigh in neighs:
+#			e = self.get_minimal_edge(n, neigh)
+#			if e.cost == mcost:
+#				
+
 	def dijkstra(self, src):
 		dist = {}
 		prev = {}
@@ -142,3 +187,21 @@ class Topo(object):
 					prev[v] = u
 
 		return dist, path
+
+	def compute_node(self, n):
+		n.routes = []
+		dist, path = self.dijkstra(n)
+		for t in dist.keys():
+			if len(path[t]) == 0:
+				continue
+			e = self.get_minimal_edge(n, path[t][0])
+			tmp = e.port1 if e.node1 == path[t][0] else e.port2
+			r = Route(t.addr, path[t][0].intfs_addr[tmp].split("/")[0], dist[t])
+			n.routes.append(r)
+
+	def compute(self):
+		cnt = 0
+		for n in self.nodes:
+			print '# Running dijkstra for node %s (%d/%d)' % (n.name, cnt, len(self.nodes))
+			self.compute_node(n)
+			cnt += 1
