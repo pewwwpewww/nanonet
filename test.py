@@ -15,6 +15,8 @@ class TestTopo(Topo):
 		wash = self.add_node("wash")
 		newy = self.add_node("newy")
 
+		self.set_default_delay(3, 5)
+
 		self.add_link(seat, salt, 0, 3, cost=913) # 913
 		self.add_link(seat, losa, 1, 2, cost=1342) # 1342
 		self.add_link(losa, salt, 0, 2, cost=1303) # 1303
@@ -41,9 +43,9 @@ topo = TestTopo()
 net = Nanonet.load('nano.net')
 #net.dump_commands()
 
-#t, edge, rm_routes, chg_routes = net.igp_prepare_link_down("salt", "seat")
-#net.apply_topo(t)
-#net.igp_apply_link_down(edge, rm_routes, chg_routes)
+t, edge, rm_routes, chg_routes = net.igp_prepare_link_down("salt", "seat")
+net.apply_topo(t)
+net.igp_apply_link_down(edge, rm_routes, chg_routes)
 
 #debug=True
 #if debug:

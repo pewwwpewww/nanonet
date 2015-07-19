@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from route import *
-import copy
+import copy, random
 
 def normalize(name):
 	if len(name) > 12:
@@ -33,17 +33,20 @@ class Node(object):
 		return self.name == o.name
 
 class Edge(object):
-	def __init__(self, node1, node2, port1, port2, cost):
+	def __init__(self, node1, node2, port1, port2, cost, delay):
 		self.node1 = node1
 		self.node2 = node2
 		self.port1 = port1
 		self.port2 = port2
 		self.cost = cost
+		self.delay = delay
 
 class Topo(object):
 	def __init__(self):
 		self.nodes = set()
 		self.edges = list()
+		self.dmin = 0
+		self.dmax = 0
 
 	def copy(self):
 		t = Topo()
@@ -80,7 +83,7 @@ class Topo(object):
 
 		return None
 
-	def add_link(self, node1, node2, port1=None, port2=None, cost=1):
+	def add_link(self, node1, node2, port1=None, port2=None, cost=1, delay=None):
 		if port1 is None:
 			port1 = node1.new_intf()
 		if port2 is None:
@@ -89,7 +92,10 @@ class Topo(object):
 		node1.add_intf(port1)
 		node2.add_intf(port2)
 
-		e = Edge(node1, node2, port1, port2, int(cost))
+		if delay is None:
+			delay = random.uniform(self.dmin, self.dmax)
+
+		e = Edge(node1, node2, port1, port2, int(cost), delay)
 		self.edges.append(e)
 		return e
 
@@ -127,6 +133,10 @@ class Topo(object):
 				res.add(e.node1)
 
 		return res
+
+	def set_default_delay(self, dmin, dmax):
+		self.dmin = dmin
+		self.dmax = dmax
 
 #	def get_min_neighbors(self, n):
 #		res = set()
