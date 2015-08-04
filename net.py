@@ -89,7 +89,7 @@ class Nanonet(object):
 			node_cmd[e.node2].append('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]))
 			if e.delay > 0:
 				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay))
-				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %fms' % (dev2, e.delay))
+				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay))
 
 		for n in self.topo.nodes:
 			for r in n.routes:

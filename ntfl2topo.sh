@@ -23,5 +23,3 @@ for n in $(cat $1 | sed -E 's/\S+,\+//g' | sed -e 's/ /;/g'); do
 	d=$(echo $n | cut -d ";" -f 4)
 	echo -e "\t\tself.add_link_name(\"$n1\", \"$n2\", cost=$w, delay=$d)"
 done
-
-echo 'Nanonet(MyTopo()).start()'
