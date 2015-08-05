@@ -58,16 +58,15 @@ class Nanonet(object):
 		print '# Running dijkstra... (%d nodes)' % len(self.topo.nodes)
 		self.topo.compute()
 
-		if netname is None:
-			netname = 'nano.net'
-		f = open(netname, 'w')
-		pickle.dump(self, f)
-		f.close()
+		if netname is not None:
+			f = open(netname, 'w')
+			pickle.dump(self, f)
+			f.close()
 
 	def call(self, cmd):
 		sys.stdout.write('%s\n' % cmd)
 
-	def dump_commands(self):
+	def dump_commands(self, wr=(lambda x: self.call(x))):
 		host_cmd = []
 		node_cmd = {}
 
@@ -96,10 +95,10 @@ class Nanonet(object):
 				node_cmd[n].append('ip -6 ro ad %s via %s metric %d' % (r.dst, r.nh, r.cost))
 
 		for c in host_cmd:
-			self.call('%s' % c)
+			wr('%s' % c)
 
 		for n in node_cmd.keys():
-			self.call('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
+			wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
 	def igp_prepare_link_down(self, name1, name2):
 		t = self.topo.copy()

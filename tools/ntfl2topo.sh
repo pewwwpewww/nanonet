@@ -6,7 +6,7 @@ cat <<EOF
 from node import *
 from net import *
 
-class MyTopo(Topo):
+class $2(Topo):
 	def build(self):
 EOF
 
@@ -23,3 +23,5 @@ for n in $(cat $1 | sed -E 's/\S+,\+//g' | sed -e 's/ /;/g'); do
 	d=$(echo $n | cut -d ";" -f 4)
 	echo -e "\t\tself.add_link_name(\"$n1\", \"$n2\", cost=$w, delay=$d)"
 done
+
+echo "topos = { '$2': (lambda: $2()) }"
