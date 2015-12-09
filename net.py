@@ -91,8 +91,16 @@ class Nanonet(object):
 				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay))
 
 		for n in self.topo.nodes:
-			for r in n.routes:
-				node_cmd[n].append('ip -6 ro ad %s via %s metric %d' % (r.dst, r.nh, r.cost))
+			for dst in n.routes.keys():
+				rts = n.routes[dst]
+				if len(rts) == 1:
+					r = rts[0]
+					node_cmd[n].append('ip -6 ro ad %s via %s metric %d' % (r.dst, r.nh, r.cost))
+				else:
+					allnh = ''
+					for r in rts:
+						allnh += 'nexthop via %s weight 1 ' % (r.nh)
+					node_cmd[n].append('ip -6 ro ad %s metric %d %s' % (r.dst, r.cost, allnh))
 
 		for c in host_cmd:
 			wr('%s' % c)

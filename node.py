@@ -16,7 +16,13 @@ class Node(object):
 		self.intfs_addr = {}
 		self.addr = None
 
-		self.routes = []
+		self.routes = {}
+
+	def add_route(self, r):
+		if r.dst not in self.routes.keys():
+			self.routes[r.dst] = [r]
+		else:
+			self.routes[r.dst].append(r)
 
 	def add_intf(self, intf):
 		self.intfs.append(intf)
@@ -25,6 +31,9 @@ class Node(object):
 		i = self.cur_intf
 		self.cur_intf += 1
 		return i
+
+	def get_portaddr(self, intf):
+		return self.intfs_addr[intf].split("/")[0]
 
 	def __hash__(self):
 		return self.name.__hash__()
@@ -111,17 +120,31 @@ class Topo(object):
 
 		return res
 
-	def get_minimal_edge(self, node1, node2):
-		edges = self.get_edges(node1, node2)
+	def get_minimal_edge_cost(self, edges):
 		cost = 2**32
-		res = None
-
 		for e in edges:
 			if e.cost < cost:
 				cost = e.cost
-				res = e
+		return cost
+
+	def get_all_minimal_edges(self, node1, node2):
+		edges = self.get_edges(node1, node2)
+		cost = self.get_minimal_edge_cost(edges)
+		res = []
+
+		for e in edges:
+			if e.cost == cost:
+				res.append(e)
 
 		return res
+
+	def get_minimal_edge(self, node1, node2):
+		edges = self.get_all_minimal_edges(node1, node2)
+
+		if len(edges) == 0:
+			return None
+
+		return edges[0]
 
 	def get_neighbors(self, node1):
 		res = set()
@@ -154,6 +177,18 @@ class Topo(object):
 #			if e.cost == mcost:
 #				
 
+	def get_paths(self, Q, S, prev, u):
+		w = prev[u]
+
+		if w is None:
+			Q.append(S)
+			return
+
+		S.append(u)
+
+		for p in w:
+			self.get_paths(Q, S[:], prev, p)
+
 	def dijkstra(self, src):
 		dist = {}
 		prev = {}
@@ -166,8 +201,8 @@ class Topo(object):
 		for v in self.nodes:
 			if v != src:
 				dist[v] = 2**32
-				prev[v] = None
-				path[v] = None
+				prev[v] = []
+				path[v] = []
 			Q.add(v)
 
 		while len(Q) > 0:
@@ -179,11 +214,11 @@ class Topo(object):
 					u = v
 
 			S = []
-			w = u
-			while prev[w] is not None:
-				S.append(w)
-				w = prev[w]
-			path[u] = list(reversed(S))
+			path[u] = []
+
+			self.get_paths(S, [], prev, u)
+			for p in S:
+				path[u].append(list(reversed(p)))
 
 			Q.remove(u)
 
@@ -194,20 +229,40 @@ class Topo(object):
 				alt = dist[u] + self.get_minimal_edge(u, v).cost
 				if alt < dist[v]:
 					dist[v] = alt
-					prev[v] = u
+					prev[v] = [u]
+				elif alt == dist[v]:
+					prev[v].append(u)
 
 		return dist, path
 
+	def get_port(self, n, e):
+		if e.node1 == n:
+			return e.port1
+		if e.node2 == n:
+			return e.port2
+		return None
+
+	def get_nh_from_paths(self, paths):
+		nh = []
+		for p in paths:
+			if len(p) == 0:
+				continue
+			if p[0] not in nh:
+				nh.append(p[0])
+		return nh
+
 	def compute_node(self, n):
-		n.routes = []
+		n.routes = {}
 		dist, path = self.dijkstra(n)
 		for t in dist.keys():
 			if len(path[t]) == 0:
 				continue
-			e = self.get_minimal_edge(n, path[t][0])
-			tmp = e.port1 if e.node1 == path[t][0] else e.port2
-			r = Route(t.addr, path[t][0].intfs_addr[tmp].split("/")[0], dist[t])
-			n.routes.append(r)
+			nh = self.get_nh_from_paths(path[t])
+			for p in nh:
+				e = self.get_minimal_edge(n, p)
+				tmp = self.get_port(p, e)
+				r = Route(t.addr, p.get_portaddr(tmp), dist[t])
+				n.add_route(r)
 
 	def compute(self):
 		cnt = 0
