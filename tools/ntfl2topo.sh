@@ -21,7 +21,8 @@ for n in $(cat $1 | sed -E 's/\S+,\+//g' | sed -e 's/ /;/g'); do
 	n2=$(echo $n | cut -d ";" -f 2)
 	w=$(echo $n | cut -d ";" -f 3)
 	d=$(echo $n | cut -d ";" -f 4)
-	echo -e "\t\tself.add_link_name(\"$n1\", \"$n2\", cost=$w, delay=$d)"
+	bw=$(echo $n | cut -d ";" -f 5)
+	echo -e "\t\tself.add_link_name(\"$n1\", \"$n2\", cost=$w, delay=$d, bw=$bw)"
 done
 
 echo "topos = { '$2': (lambda: $2()) }"

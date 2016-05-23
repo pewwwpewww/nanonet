@@ -86,9 +86,19 @@ class Nanonet(object):
 			host_cmd.append('ip link set %s netns %s' % (dev2, e.node2.name))
 			node_cmd[e.node1].append('ifconfig %s add %s up' % (dev1, e.node1.intfs_addr[e.port1]))
 			node_cmd[e.node2].append('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]))
-			if e.delay > 0:
+			if e.delay > 0 and e.bw == 0:
 				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay))
 				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay))
+			elif e.bw > 0:
+				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: htb' % (dev1))
+				node_cmd[e.node1].append('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev1, e.bw, e.bw))
+				node_cmd[e.node1].append('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev1))
+				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: htb' % (dev2))
+				node_cmd[e.node2].append('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev2, e.bw, e.bw))
+				node_cmd[e.node2].append('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev2))
+				if e.delay > 0:
+					node_cmd[e.node1].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay))
+					node_cmd[e.node2].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay))
 
 		for n in self.topo.nodes:
 			for dst in n.routes.keys():
