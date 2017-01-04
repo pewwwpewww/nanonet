@@ -104,14 +104,15 @@ class Nanonet(object):
 			for n in self.topo.nodes:
 				for dst in n.routes.keys():
 					rts = n.routes[dst]
+					laddr = n.addr.split('/')[0]
 					if len(rts) == 1:
 						r = rts[0]
-						node_cmd[n].append('ip -6 ro ad %s via %s metric %d' % (r.dst, r.nh, r.cost))
+						node_cmd[n].append('ip -6 ro ad %s via %s metric %d src %s' % (r.dst, r.nh, r.cost, laddr))
 					else:
 						allnh = ''
 						for r in rts:
 							allnh += 'nexthop via %s weight 1 ' % (r.nh)
-						node_cmd[n].append('ip -6 ro ad %s metric %d %s' % (r.dst, r.cost, allnh))
+						node_cmd[n].append('ip -6 ro ad %s metric %d src %s %s' % (r.dst, r.cost, laddr, allnh))
 
 		for c in host_cmd:
 			wr('%s' % c)
