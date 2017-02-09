@@ -76,6 +76,7 @@ class Nanonet(object):
 			node_cmd[n].append('ifconfig lo up')
 			node_cmd[n].append('ip -6 ad ad %s dev lo' % n.addr)
 			node_cmd[n].append('sysctl net.ipv6.conf.all.forwarding=1')
+			node_cmd[n].append('sysctl net.ipv6.conf.all.seg6_enabled=1')
 
 		for e in self.topo.edges:
 			dev1 = '%s-%d' % (e.node1.name, e.port1)
@@ -85,7 +86,9 @@ class Nanonet(object):
 			host_cmd.append('ip link set %s netns %s' % (dev1, e.node1.name))
 			host_cmd.append('ip link set %s netns %s' % (dev2, e.node2.name))
 			node_cmd[e.node1].append('ifconfig %s add %s up' % (dev1, e.node1.intfs_addr[e.port1]))
+			node_cmd[e.node1].append('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev1))
 			node_cmd[e.node2].append('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]))
+			node_cmd[e.node2].append('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev2))
 			if e.delay > 0 and e.bw == 0:
 				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay))
 				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay))
