@@ -4,6 +4,8 @@ import sys, os
 from node import *
 from net import *
 
+# Main file
+# Usage:
 # ./build.py topos/file.py toponame [outdir]
 # custom exec inspired by mininet
 
@@ -11,6 +13,7 @@ def usage():
 	print ('Usage: %s topofile.py toponame [outdir]' % (sys.argv[0]))
 	sys.exit(-1)
 
+# Print usage in case of wrong arguments
 if len(sys.argv) < 3 or len(sys.argv) > 4:
 	usage()
 
@@ -22,6 +25,7 @@ topos = {}
 
 sys.path.append('.')
 
+# Open and parse the topology python file, which was given via command line option
 customs = {}
 # TODO: Note: Check if this is the right replacement for Python3
 with open(sys.argv[1]) as f:
@@ -29,7 +33,8 @@ with open(sys.argv[1]) as f:
 	exec(code, customs, customs)
 # end replacement
 
-for name, val in customs.iteritems():
+# ???
+for name, val in customs.items():
 	if name == 'topos':
 		globals()['topos'].update(val)
 	else:
@@ -42,6 +47,7 @@ os.chdir(outdir)
 net = Nanonet(topo)
 net.start()
 
+# Print topology commands to output file.
 f = open(sys.argv[2]+'.topo.sh', 'w')
 
 for n in net.topo.nodes:

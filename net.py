@@ -5,6 +5,7 @@ from route import *
 import socket, os, sys
 import pickle
 
+# Main class which creates the Shell commands
 class Nanonet(object):
 	def __init__(self, topo, linknet=None, loopnet=None):
 		self.topo = topo
@@ -19,6 +20,8 @@ class Nanonet(object):
 		self.linknet = linknet
 		self.loopnet = loopnet
 
+	# Load a serialized python object
+	# Currently not used.
 	@staticmethod
 	def load(fname):
 		f = open(fname, 'r')
@@ -26,6 +29,7 @@ class Nanonet(object):
 		f.close()
 		return obj
 
+	# Assign the IPs to the interfaces (both node loopbacks and edge loopbacks)
 	def assign(self):
 		for e in self.topo.edges:
 			enet = self.linknet.next_net()
@@ -49,6 +53,8 @@ class Nanonet(object):
 
 			n.addr = socket.inet_ntop(socket.AF_INET6, str(enet))+'/'+str(self.loopnet.submask)
 
+	# Start algorithm
+	# Builds the topology, runs Dijkstra and
 	def start(self, netname=None):
 		print ('# Building topology...')
 		self.topo.build()
@@ -58,18 +64,24 @@ class Nanonet(object):
 		print ('# Running dijkstra... (%d nodes)' % len(self.topo.nodes))
 		self.topo.compute()
 
+		# Serialize into file
+		# Currently not used.
 		if netname is not None:
 			f = open(netname, 'w')
 			pickle.dump(self, f)
 			f.close()
 
+	# Currently not used.
 	def call(self, cmd):
 		sys.stdout.write('%s\n' % cmd)
 
-	def dump_commands(self, wr=(lambda x: self.call(x)), noroute=False):
+	# Generate the Shell commands.
+	# Note: Removed default parameter from wr
+	def dump_commands(self, wr, noroute=False):
 		host_cmd = []
 		node_cmd = {}
 
+		# Create network namespace for each node
 		for n in self.topo.nodes:
 			host_cmd.append('ip netns add %s' % n.name)
 			node_cmd[n] = []
@@ -78,6 +90,7 @@ class Nanonet(object):
 			node_cmd[n].append('sysctl net.ipv6.conf.all.forwarding=1')
 			node_cmd[n].append('sysctl net.ipv6.conf.all.seg6_enabled=1')
 
+		# Connect together the namespaces, create the links etc.
 		for e in self.topo.edges:
 			dev1 = '%s-%d' % (e.node1.name, e.port1)
 			dev2 = '%s-%d' % (e.node2.name, e.port2)
@@ -103,6 +116,7 @@ class Nanonet(object):
 					node_cmd[e.node1].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay))
 					node_cmd[e.node2].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay))
 
+		# Create routes between the namespaces
 		if not noroute:
 			for n in self.topo.nodes:
 				for dst in n.routes.keys():
@@ -123,6 +137,8 @@ class Nanonet(object):
 		for n in node_cmd.keys():
 			wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
+	# Remove some routes (TODO: why???)
+	# Currently not used.
 	def igp_prepare_link_down(self, name1, name2):
 		t = self.topo.copy()
 
@@ -156,6 +172,8 @@ class Nanonet(object):
 #			for r in chg_routes[n]:
 #				print '# %s via %s metric %d' % (r.dst, r.nh, r.cost)
 
+	# Remove some routes (TODO: why???)
+	# Currently not used.
 	def igp_apply_link_down(self, edge, rm_routes, chg_routes, timer=50):
 		n1, n2 = edge.node1, edge.node2
 
