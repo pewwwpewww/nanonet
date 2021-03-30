@@ -134,8 +134,13 @@ class Nanonet(object):
 		for c in host_cmd:
 			wr('%s' % c)
 
+		# Print one command per line instead of all in one line
 		for n in node_cmd.keys():
-			wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
+			wr('')
+			wr(f'# Commands for namespace {n.name}')
+			for cmds in node_cmd[n]:
+				wr('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
+			#wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
 	# Remove some routes (TODO: why???)
 	# Currently not used.
