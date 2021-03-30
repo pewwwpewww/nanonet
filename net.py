@@ -50,12 +50,12 @@ class Nanonet(object):
 			n.addr = socket.inet_ntop(socket.AF_INET6, str(enet))+'/'+str(self.loopnet.submask)
 
 	def start(self, netname=None):
-		print '# Building topology...'
+		print ('# Building topology...')
 		self.topo.build()
-		print '# Assigning prefixes...'
+		print ('# Assigning prefixes...')
 		self.assign()
 
-		print '# Running dijkstra... (%d nodes)' % len(self.topo.nodes)
+		print ('# Running dijkstra... (%d nodes)' % len(self.topo.nodes))
 		self.topo.compute()
 
 		if netname is not None:

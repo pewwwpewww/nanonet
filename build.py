@@ -4,11 +4,11 @@ import sys, os
 from node import *
 from net import *
 
-# ./build topos/file.py toponame [outdir]
+# ./build.py topos/file.py toponame [outdir]
 # custom exec inspired by mininet
 
 def usage():
-	print 'Usage: %s topofile.py toponame [outdir]' % (sys.argv[0])
+	print ('Usage: %s topofile.py toponame [outdir]' % (sys.argv[0]))
 	sys.exit(-1)
 
 if len(sys.argv) < 3 or len(sys.argv) > 4:
@@ -23,7 +23,12 @@ topos = {}
 sys.path.append('.')
 
 customs = {}
-execfile(sys.argv[1], customs, customs)
+# TODO: Note: Check if this is the right replacement for Python3
+with open(sys.argv[1]) as f:
+	code = compile(f.read(), sys.argv[1], 'exec')
+	exec(code, customs, customs)
+# end replacement
+
 for name, val in customs.iteritems():
 	if name == 'topos':
 		globals()['topos'].update(val)

@@ -268,6 +268,6 @@ class Topo(object):
 	def compute(self):
 		cnt = 0
 		for n in self.nodes:
-			print '# Running dijkstra for node %s (%d/%d)' % (n.name, cnt+1, len(self.nodes))
+			print ('# Running dijkstra for node %s (%d/%d)' % (n.name, cnt+1, len(self.nodes)))
 			self.compute_node(n)
 			cnt += 1
