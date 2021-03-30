@@ -22,11 +22,11 @@ class V6Net(object):
 		i = self.idx_low
 
 		while i >= self.idx_high:
-			if self.curnet[i] == 0xff:
-				self.curnet[i] = 0
+			if self.curnet[int(i)] == 0xff:
+				self.curnet[int(i)] = 0
 				i -= 1
 			else:
-				self.curnet[i] += 1
+				self.curnet[int(i)] += 1
 				break
 
 		if i < self.idx_high:

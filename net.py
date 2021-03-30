@@ -44,14 +44,14 @@ class Nanonet(object):
 #			print e.port2
 #			print 'For port1 %d and port2 %d' % (e.port1, e.port2)
 
-			e.node1.intfs_addr[e.port1] = socket.inet_ntop(socket.AF_INET6, str(a1))+'/'+str(self.linknet.submask)
-			e.node2.intfs_addr[e.port2] = socket.inet_ntop(socket.AF_INET6, str(a2))+'/'+str(self.linknet.submask)
+			e.node1.intfs_addr[e.port1] = socket.inet_ntop(socket.AF_INET6, a1)+'/'+str(self.linknet.submask)
+			e.node2.intfs_addr[e.port2] = socket.inet_ntop(socket.AF_INET6, a2)+'/'+str(self.linknet.submask)
 
 		for n in self.topo.nodes:
 			enet = self.loopnet.next_net()
 			enet[-1] = 1
 
-			n.addr = socket.inet_ntop(socket.AF_INET6, str(enet))+'/'+str(self.loopnet.submask)
+			n.addr = socket.inet_ntop(socket.AF_INET6, enet)+'/'+str(self.loopnet.submask)
 
 	# Start algorithm
 	# Builds the topology, runs Dijkstra and
