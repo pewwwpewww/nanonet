@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import re
 
 from addr import *
 from route import *
@@ -77,7 +78,7 @@ class Nanonet(object):
 
 	# Generate the Shell commands.
 	# Note: Removed default parameter from wr
-	def dump_commands(self, wr, noroute=False):
+	def dump_commands(self, write_lambda, noroute=False):
 		host_cmd = []
 		node_cmd = {}
 
@@ -131,15 +132,42 @@ class Nanonet(object):
 							allnh += 'nexthop via %s weight 1 ' % (r.nh)
 						node_cmd[n].append('ip -6 ro ad %s metric %d src %s %s' % (r.dst, r.cost, laddr, allnh))
 
+		# Add additional commands per node
+		for n in self.topo.nodes:
+			for c in self.topo.get_node(n.name).additional_commands:
+				# Replace {N} in the command strings
+				# get all node-names to be replaced
+				to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', c)]
+				# find ip addresses
+				for node_name in to_be_replaced:
+					node = self.topo.get_node(re.sub(r'-[\d]+$','', node_name.replace("/","")))
+					# No node with this name ...
+					if not node:
+						continue
+
+					# Choose either interface address or node address
+					if re.search(r'-[\d]+$', node_name):
+						interface_number = re.findall(r'-[\d]+$', node_name)[-1][1:]
+						addr = node.intfs_addr[int(interface_number)]
+					else:
+						addr = node.addr
+					# If tailing / is given, include netmask, else skip
+					if( node_name.find('/') == -1):
+						c = c.replace("{"+node_name+"}", re.sub(r'/[\d]+','', addr))
+					else:
+						c = c.replace("{"+node_name+"}", addr)
+				node_cmd[n].append(c)
+
+		# Write host commands line per line
 		for c in host_cmd:
-			wr('%s' % c)
+			write_lambda('%s' % c)
 
 		# Print one command per line instead of all in one line
 		for n in node_cmd.keys():
-			wr('')
-			wr(f'# Commands for namespace {n.name}')
+			write_lambda('')
+			write_lambda(f'# Commands for namespace {n.name}')
 			for cmds in node_cmd[n]:
-				wr('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
+				write_lambda('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
 			#wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
 	# Remove some routes (TODO: why???)

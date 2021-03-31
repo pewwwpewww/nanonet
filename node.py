@@ -18,6 +18,9 @@ class Node(object):
 
 		self.routes = {}
 
+		# Add additional commands, like one to start nuttcp
+		self.additional_commands = []
+
 	def add_route(self, r):
 		if r.dst not in self.routes.keys():
 			self.routes[r.dst] = [r]
@@ -34,6 +37,10 @@ class Node(object):
 
 	def get_portaddr(self, intf):
 		return self.intfs_addr[intf].split("/")[0]
+
+	# Add an additional command
+	def add_command(self, command):
+		self.additional_commands.append(command)
 
 	def __hash__(self):
 		return self.name.__hash__()
@@ -111,6 +118,12 @@ class Topo(object):
 
 	def add_link_name(self, name1, name2, *args, **kwargs):
 		return self.add_link(self.get_node(name1), self.get_node(name2), *args, **kwargs)
+
+	# Add a custom command
+	def add_command(self, node, command):
+		lnode = self.get_node(node)
+		if(lnode is not None):
+			lnode.add_command(command)
 
 	def get_edges(self, node1, node2):
 		res = []
