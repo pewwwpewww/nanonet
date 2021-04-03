@@ -2,8 +2,7 @@
 import re
 
 from addr import *
-from route import *
-import socket, os, sys
+import socket, sys
 import pickle
 
 # Main class which creates the Shell commands
@@ -138,6 +137,35 @@ class Nanonet(object):
 				# Replace {N} in the command strings
 				# get all node-names to be replaced
 				to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', c)]
+
+				# syntax "edge (...,...) at ..."
+				if re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
+					full_data = re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
+					# Remove {}
+					data = full_data[1:-1]
+					# get edge points as array, inside the "(...)"
+					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
+					# get vertex
+					at = data[data.rfind(" ")+1:]
+					# the other
+					other = list(filter(lambda v: not v == at, edge_points))[0]
+
+					edge = self.topo.get_minimal_edge(self.topo.get_node(at),self.topo.get_node(other))
+					addr = ""
+					if ( not edge ):
+						raise Exception("Error parsing ", c)
+					if (edge.node1.name == at):
+						#print(edge.node1.intfs_addr)
+						addr = edge.node1.intfs_addr[edge.port1]
+					elif (edge.node2.name == at):
+						#print(edge.node2.intfs_addr)
+						addr = edge.node2.intfs_addr[edge.port2]
+					else:
+						raise Exception("Error parsing ", c)
+
+					# Substitute edge address (and remove the netmask)
+					c = c.replace(full_data,  re.sub(r'/[\d]+','', addr))
+
 				# find ip addresses
 				for node_name in to_be_replaced:
 					node = self.topo.get_node(re.sub(r'-[\d]+$','', node_name.replace("/","")))
