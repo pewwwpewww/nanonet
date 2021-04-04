@@ -54,5 +54,5 @@ for n in net.topo.nodes:
 	f.write('# %s loop: %s\n' % (n.name, n.addr))
 f.write('\n')
 
-net.dump_commands(lambda x: f.write('%s\n' % x), noroute=False)
+net.dump_commands(lambda x: f.write('%s\n' % x), noroute=topo.noroute)
 f.close()

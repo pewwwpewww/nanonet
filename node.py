@@ -64,6 +64,7 @@ class Topo(object):
 		self.edges = list()
 		self.dmin = 0
 		self.dmax = 0
+		self.noroute = False
 
 	def copy(self):
 		t = Topo()

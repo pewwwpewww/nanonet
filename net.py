@@ -138,15 +138,13 @@ class Nanonet(object):
 				# get all node-names to be replaced
 				to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', c)]
 
-				# syntax "edge (...,...) at ..."
+				# syntax "{edge (...,...) at ...}"
 				if re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
-					full_data = re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
-					# Remove {}
-					data = full_data[1:-1]
+					data = re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
 					# get edge points as array, inside the "(...)"
 					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
 					# get vertex
-					at = data[data.rfind(" ")+1:]
+					at = data[data.rfind(" ")+1:-1]
 					# the other
 					other = list(filter(lambda v: not v == at, edge_points))[0]
 
@@ -164,7 +162,31 @@ class Nanonet(object):
 						raise Exception("Error parsing ", c)
 
 					# Substitute edge address (and remove the netmask)
-					c = c.replace(full_data,  re.sub(r'/[\d]+','', addr))
+					c = c.replace(data,  re.sub(r'/[\d]+','', addr))
+				# extract interface name
+				elif re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
+					data = re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
+					# get edge points as array, inside the "(...)"
+					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
+					# get vertex
+					at = data[data.rfind(" ")+1:-1]
+					# the other
+					other = list(filter(lambda v: not v == at, edge_points))[0]
+
+					edge = self.topo.get_minimal_edge(self.topo.get_node(at),self.topo.get_node(other))
+					addr = ""
+					if ( not edge ):
+						raise Exception("Error parsing ", c)
+					if (edge.node1.name == at):
+						#print(edge.node1.intfs_addr)
+						addr = edge.node1.name + "-" + str(edge.port1)
+					elif (edge.node2.name == at):
+						#print(edge.node2.intfs_addr)
+						addr = edge.node2.name + "-" + str(edge.port2)
+					else:
+						raise Exception("Error parsing ", c)
+					# Substitute edge interface
+					c = c.replace(data,  addr)
 
 				# find ip addresses
 				for node_name in to_be_replaced:
