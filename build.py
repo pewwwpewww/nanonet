@@ -27,11 +27,9 @@ sys.path.append('.')
 
 # Open and parse the topology python file, which was given via command line option
 customs = {}
-# TODO: Note: Check if this is the right replacement for Python3
 with open(sys.argv[1]) as f:
 	code = compile(f.read(), sys.argv[1], 'exec')
 	exec(code, customs, customs)
-# end replacement
 
 # ???
 for name, val in customs.items():

@@ -139,7 +139,7 @@ class Nanonet(object):
 				to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', c)]
 
 				# syntax "{edge (...,...) at ...}"
-				if re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
+				while re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
 					data = re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
 					# get edge points as array, inside the "(...)"
 					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
@@ -164,7 +164,7 @@ class Nanonet(object):
 					# Substitute edge address (and remove the netmask)
 					c = c.replace(data,  re.sub(r'/[\d]+','', addr))
 				# extract interface name
-				elif re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
+				while re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
 					data = re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
 					# get edge points as array, inside the "(...)"
 					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
