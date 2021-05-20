@@ -89,6 +89,9 @@ class Topo(object):
 	def build(self):
 		pass
 
+	def dijkstra_computed(self):
+		pass
+
 	def add_node(self, name):
 		n = Node(normalize(name))
 		self.nodes.add(n)
@@ -125,6 +128,16 @@ class Topo(object):
 		lnode = self.get_node(node)
 		if(lnode is not None):
 			lnode.add_command(command)
+
+	# Throughput starting
+	# NOTE: Ending must be done separately.
+	def enable_throughput(self):
+		for n in self.nodes:
+			self.add_command(n.name, f"./throughput.py -o {n.name}.throughput.json -s")
+
+	# Return dijkstra route from src to dst
+	def get_dijkstra_route_by_name(self, src_name, dst_name):
+		return self.get_node(src_name).routes[self.get_node(dst_name).addr]
 
 	def get_edges(self, node1, node2):
 		res = []

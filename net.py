@@ -64,6 +64,9 @@ class Nanonet(object):
 		print ('# Running dijkstra... (%d nodes)' % len(self.topo.nodes))
 		self.topo.compute()
 
+		# Allows also accessing the routing information.
+		self.topo.dijkstra_computed()
+
 		# Serialize into file
 		# Currently not used.
 		if netname is not None:
