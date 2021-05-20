@@ -1,20 +1,35 @@
 
 import json
 import math
-from math import ceil
+from sys import stderr, argv
+
+# Factors for align the comma values of the JSON file
+WEIGHT_FACTOR   =   1000
+CAPACITY_FACTOR = 10000000
+DEMAND_FACTOR   = 10000000
+# Please note: CAPACITY_FACTOR and DEMAND_FACTOR should ALWAYS be the same value!!!
+if CAPACITY_FACTOR != DEMAND_FACTOR:
+    stderr.write("WARNING: CAPACITY_FACTOR does not match DEMAND_FACTOR!")
+
+filename = "/dev/stdin"
+topo_name = "Thomas"
+if len(argv) >= 2:
+    filename = argv[1]
+if len(argv) >= 3:
+    topo_name = argv[2]
 
 nodes = []
 destination_nodes = []
 
 # Parse JSON file
-with open("g-9_joint-wp-1.json") as json_file:
+with open(filename) as json_file:
     data = json.load(json_file)
 
-output = """
+output = f"""
 #!/usr/bin/env python
 from node import *
 
-class Thomas(Topo):
+class {topo_name}(Topo):
     def build(self):
 """
 
@@ -50,7 +65,7 @@ for edge1 in data["links"]:
 for edge in data["links"]:
     output += \
 f"""\
-        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*1000)}, delay=0.2, bw={edge["capacity"]*100000})
+        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*WEIGHT_FACTOR)}, delay=0.2, bw={edge["capacity"]*CAPACITY_FACTOR})
 """
 
 output += \
@@ -72,8 +87,7 @@ for routes in data["demands"]:
     if segs:
         output += \
 f"""\
-        #print({routes["src"]},{routes["dst"]})
-        #print(self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(routes["dst"])}")[0].nh)
+        # Demand from {routes["src"]} to {routes["dst"]}
         self.add_command("{routes["src"]}", "ip -6 route add {{{routes["dst"]}}} {f'encap seg6 mode encap segs {segs}' if segs else ''} via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(routes["dst"])}")[0].nh+" metric 1 src {{{routes["src"]}}}")
 """
 
@@ -86,11 +100,11 @@ f"""\
 for demand in data["demands"]:
     output += \
 f"""\
-        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T300 -i1 -R{int(demand["demand_size"]*100000)} {{{demand["dst"]}}} \>\>flow-{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
+        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T300 -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} {{{demand["dst"]}}} \>\>flow-{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
 """
 
-output += """
-topos = {'Thomas': (lambda: Thomas())}
+output += f"""
+topos = {{'{topo_name}': (lambda: {topo_name}())}}
 """
 
 print(output)
