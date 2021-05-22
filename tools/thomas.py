@@ -1,7 +1,7 @@
 
 import json
 import math
-from sys import stderr, argv
+from sys import stderr, argv, exit
 
 # Factors for align the comma values of the JSON file
 WEIGHT_FACTOR   =   1000
@@ -10,6 +10,25 @@ DEMAND_FACTOR   = 10000000
 # Please note: CAPACITY_FACTOR and DEMAND_FACTOR should ALWAYS be the same value!!!
 if CAPACITY_FACTOR != DEMAND_FACTOR:
     stderr.write("WARNING: CAPACITY_FACTOR does not match DEMAND_FACTOR!")
+
+
+
+# CONVERT TO OCTAVE function
+# This snipped extracts the demands in the JSON file to a matrix, readable in Octave or Matlab
+if len(argv) >= 2 and argv[1] == "--octave":
+    filename = "/dev/stdin"
+    if len(argv) == 3:
+        filename = argv[2]
+    # Parse JSON file
+    with open(filename) as json_file:
+        data = json.load(json_file)
+
+    for demand in data["demands"]:
+        print(f'D({demand["src"] + 1},{demand["dst"] + 1}) = {int(demand["demand_size"] * DEMAND_FACTOR)};')
+
+    exit(0)
+# END CONVERT TO OCTAVE function
+
 
 filename = "/dev/stdin"
 topo_name = "Thomas"
