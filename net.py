@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import re
 
 from addr import *
 import socket, sys
@@ -84,6 +83,8 @@ class Nanonet(object):
 		host_cmd = []
 		node_cmd = {}
 
+		write_lambda("%s" % self.bash_query())
+
 		# Create network namespace for each node
 		for n in self.topo.nodes:
 			host_cmd.append('ip netns add %s' % n.name)
@@ -137,79 +138,8 @@ class Nanonet(object):
 		# Add additional commands per node
 		for n in self.topo.nodes:
 			for c in self.topo.get_node(n.name).additional_commands:
-				# Replace {N} in the command strings
-				# get all node-names to be replaced
-				to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', c)]
-
-				# syntax "{edge (...,...) at ...}"
-				while re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
-					data = re.search( r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
-					# get edge points as array, inside the "(...)"
-					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
-					# get vertex
-					at = data[data.rfind(" ")+1:-1]
-					# the other
-					other = list(filter(lambda v: not v == at, edge_points))[0]
-
-					edge = self.topo.get_minimal_edge(self.topo.get_node(at),self.topo.get_node(other))
-					addr = ""
-					if ( not edge ):
-						raise Exception("Error parsing ", c)
-					if (edge.node1.name == at):
-						#print(edge.node1.intfs_addr)
-						addr = edge.node1.intfs_addr[edge.port1]
-					elif (edge.node2.name == at):
-						#print(edge.node2.intfs_addr)
-						addr = edge.node2.intfs_addr[edge.port2]
-					else:
-						raise Exception("Error parsing ", c)
-
-					# Substitute edge address (and remove the netmask)
-					c = c.replace(data,  re.sub(r'/[\d]+','', addr))
-				# extract interface name
-				while re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c):
-					data = re.search( r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', c).group()
-					# get edge points as array, inside the "(...)"
-					edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(")+1 : data.find(")")])))
-					# get vertex
-					at = data[data.rfind(" ")+1:-1]
-					# the other
-					other = list(filter(lambda v: not v == at, edge_points))[0]
-
-					edge = self.topo.get_minimal_edge(self.topo.get_node(at),self.topo.get_node(other))
-					addr = ""
-					if ( not edge ):
-						raise Exception("Error parsing ", c)
-					if (edge.node1.name == at):
-						#print(edge.node1.intfs_addr)
-						addr = edge.node1.name + "-" + str(edge.port1)
-					elif (edge.node2.name == at):
-						#print(edge.node2.intfs_addr)
-						addr = edge.node2.name + "-" + str(edge.port2)
-					else:
-						raise Exception("Error parsing ", c)
-					# Substitute edge interface
-					c = c.replace(data,  addr)
-
-				# find ip addresses
-				for node_name in to_be_replaced:
-					node = self.topo.get_node(re.sub(r'-[\d]+$','', node_name.replace("/","")))
-					# No node with this name ...
-					if not node:
-						continue
-
-					# Choose either interface address or node address
-					if re.search(r'-[\d]+$', node_name):
-						interface_number = re.findall(r'-[\d]+$', node_name)[-1][1:]
-						addr = node.intfs_addr[int(interface_number)]
-					else:
-						addr = node.addr
-					# If tailing / is given, include netmask, else skip
-					if( node_name.find('/') == -1):
-						c = c.replace("{"+node_name+"}", re.sub(r'/[\d]+','', addr))
-					else:
-						c = c.replace("{"+node_name+"}", addr)
-				node_cmd[n].append(c)
+				command = self.topo.process_strings(c)
+				node_cmd[n].append(command)
 
 		# Write host commands line per line
 		for c in host_cmd:
@@ -222,6 +152,32 @@ class Nanonet(object):
 			for cmds in node_cmd[n]:
 				write_lambda('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
 			#wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
+
+
+	def bash_query(self):
+		IFCMD = "if [ \"$1\" == \"%s\" ]; then echo %s ; fi ; "
+		output = ""
+		output += 'if [ "$1" == "--query" ]; then shift; '
+		for n1 in self.topo.nodes:
+			output += (IFCMD % (n1.name, self.topo.process_strings("{" + n1.name + "}")))
+			for n2 in self.topo.nodes:
+				if n1.name == n2.name:
+					continue
+
+				# Try catch because throws an exception if nodes are not adjacent
+				try:
+					output += (IFCMD % ("ifname ("+n1.name+","+n2.name+") at "+n1.name,
+										self.topo.process_strings("{ifname ("+n1.name+","+n2.name+") at "+n1.name+"}")))
+				except:
+					pass
+				try:
+					output += (IFCMD % ("edge (" + n1.name + "," + n2.name + ") at " + n1.name,
+										self.topo.process_strings("{edge (" + n1.name + "," + n2.name + ") at " + n1.name + "}")))
+				except:
+					pass
+
+		output += "exit; fi\n"
+		return output
 
 	# Remove some routes (TODO: why???)
 	# Currently not used.
