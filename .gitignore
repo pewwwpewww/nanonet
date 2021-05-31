@@ -3,3 +3,4 @@
 *.pyc
 *.topo.sh
 *.topo.py
+*.json
