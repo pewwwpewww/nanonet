@@ -66,6 +66,7 @@ class Topo(object):
 		self.dmin = 0
 		self.dmax = 0
 		self.noroute = False
+		self.throughput_enabled = False
 
 	def copy(self):
 		t = Topo()
@@ -134,7 +135,8 @@ class Topo(object):
 	# NOTE: Ending must be done separately.
 	def enable_throughput(self):
 		for n in self.nodes:
-			self.add_command(n.name, f"./throughput.py -o {n.name}.throughput.json -s")
+			self.add_command(n.name, f"`dirname $0`/throughput.py -o {n.name}.throughput.json -s")
+		self.throughput_enabled = True
 
 	# Return dijkstra route from src to dst
 	def get_dijkstra_route_by_name(self, src_name, dst_name):

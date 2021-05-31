@@ -171,12 +171,36 @@ class Nanonet(object):
 				except:
 					pass
 				try:
+					output += (IFCMD % ("ifname (" + n1.name + "," + n2.name + ") at " + n2.name,
+										self.topo.process_strings("{ifname ("+n1.name+","+n2.name+") at "+n2.name+"}")))
+				except:
+					pass
+				try:
 					output += (IFCMD % ("edge (" + n1.name + "," + n2.name + ") at " + n1.name,
 										self.topo.process_strings("{edge (" + n1.name + "," + n2.name + ") at " + n1.name + "}")))
 				except:
 					pass
+				try:
+					output += (IFCMD % ("edge (" + n1.name + "," + n2.name + ") at " + n2.name,
+										self.topo.process_strings("{edge (" + n1.name + "," + n2.name + ") at " + n2.name + "}")))
+				except:
+					pass
 
 		output += "exit; fi\n"
+
+		# Remove namespaces with "--stop" option
+		output += "if [ \"$1\" == \"--stop\" ]; then "
+
+		# Stop all processes of the namespace and remove the namespace itself
+		for namespace in self.topo.nodes:
+			if self.topo.throughput_enabled:
+				output += f"ip netns exec {namespace.name} bash -c '`dirname $0`/throughput.py -e -i {namespace.name}.throughput.json -o {namespace.name}.throughput.json' ; "
+			output += f"ip netns pids {namespace.name} | xargs kill -9 ; "
+			output += f"ip netns del {namespace.name} ; "
+		output += " exit ; "
+		output += " fi \n"
+		output += "set -x \n\n"
+
 		return output
 
 	# Remove some routes (TODO: why???)
