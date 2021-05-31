@@ -107,7 +107,7 @@ for routes in data["demands"]:
         output += \
 f"""\
         # Demand from {routes["src"]} to {routes["dst"]}
-        self.add_command("{routes["src"]}", "ip -6 route add {{{routes["dst"]}}} {f'encap seg6 mode encap segs {segs}' if segs else ''} via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(routes["dst"])}")[0].nh+" metric 1 src {{{routes["src"]}}}")
+        self.add_command("{routes["src"]}", "ip -6 route add {{{routes["dst"]}}} {f'encap seg6 mode encap segs {segs}' if segs else ''} via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(routes['segments'][0])}")[0].nh+" metric 1 src {{{routes["src"]}}}")
 """
 
 # Start nuttcp at destination nodes
@@ -120,6 +120,10 @@ for demand in data["demands"]:
     output += \
 f"""\
         self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T300 -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} {{{demand["dst"]}}} \>\>flow-{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
+"""
+
+output += """
+        self.enable_throughput()
 """
 
 output += f"""
