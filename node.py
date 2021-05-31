@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import re
 
 from route import *
 import copy, random
@@ -18,6 +19,9 @@ class Node(object):
 
 		self.routes = {}
 
+		# Add additional commands, like one to start nuttcp
+		self.additional_commands = []
+
 	def add_route(self, r):
 		if r.dst not in self.routes.keys():
 			self.routes[r.dst] = [r]
@@ -34,6 +38,10 @@ class Node(object):
 
 	def get_portaddr(self, intf):
 		return self.intfs_addr[intf].split("/")[0]
+
+	# Add an additional command
+	def add_command(self, command):
+		self.additional_commands.append(command)
 
 	def __hash__(self):
 		return self.name.__hash__()
@@ -57,6 +65,8 @@ class Topo(object):
 		self.edges = list()
 		self.dmin = 0
 		self.dmax = 0
+		self.noroute = False
+		self.throughput_enabled = False
 
 	def copy(self):
 		t = Topo()
@@ -79,6 +89,9 @@ class Topo(object):
 		return t
 
 	def build(self):
+		pass
+
+	def dijkstra_computed(self):
 		pass
 
 	def add_node(self, name):
@@ -111,6 +124,101 @@ class Topo(object):
 
 	def add_link_name(self, name1, name2, *args, **kwargs):
 		return self.add_link(self.get_node(name1), self.get_node(name2), *args, **kwargs)
+
+	# Add a custom command
+	def add_command(self, node, command):
+		lnode = self.get_node(node)
+		if(lnode is not None):
+			lnode.add_command(command)
+
+	# Throughput starting
+	# NOTE: Ending must be done separately.
+	def enable_throughput(self):
+		for n in self.nodes:
+			self.add_command(n.name, f"`dirname $0`/throughput.py -o {n.name}.throughput.json -s")
+		self.throughput_enabled = True
+
+	# Return dijkstra route from src to dst
+	def get_dijkstra_route_by_name(self, src_name, dst_name):
+		return self.get_node(src_name).routes[self.get_node(dst_name).addr]
+
+	# Replace {} expressions in strings
+	def process_strings(self, command):
+		# Replace {N} in the command strings
+		# get all node-names to be replaced
+		to_be_replaced = [x[1: -1] for x in re.findall(r'{[a-zA-Z0-9\-]+/*}', command)]
+
+		# syntax "{edge (...,...) at ...}"
+		while re.search(r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', command):
+			data = re.search(r'{edge\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}',
+							 command).group()
+			# get edge points as array, inside the "(...)"
+			edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(") + 1: data.find(")")])))
+			# get vertex
+			at = data[data.rfind(" ") + 1:-1]
+			# the other
+			other = list(filter(lambda v: not v == at, edge_points))[0]
+
+			edge = self.get_minimal_edge(self.get_node(at), self.get_node(other))
+			addr = ""
+			if (not edge):
+				raise Exception("Error parsing ", command)
+			if (edge.node1.name == at):
+				# print(edge.node1.intfs_addr)
+				addr = edge.node1.intfs_addr[edge.port1]
+			elif (edge.node2.name == at):
+				# print(edge.node2.intfs_addr)
+				addr = edge.node2.intfs_addr[edge.port2]
+			else:
+				raise Exception("Error parsing ", command)
+
+			# Substitute edge address (and remove the netmask)
+			command = command.replace(data, re.sub(r'/[\d]+', '', addr))
+		# extract interface name
+		while re.search(r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}', command):
+			data = re.search(r'{ifname\s*\(\s*[a-zA-Z0-9]+\s*,\s*[a-zA-Z0-9]+\s*\)\s*at\s+[a-zA-Z0-9]+\s*}',
+							 command).group()
+			# get edge points as array, inside the "(...)"
+			edge_points = list(filter(None, re.split(r"[, ]", data[data.find("(") + 1: data.find(")")])))
+			# get vertex
+			at = data[data.rfind(" ") + 1:-1]
+			# the other
+			other = list(filter(lambda v: not v == at, edge_points))[0]
+
+			edge = self.get_minimal_edge(self.get_node(at), self.get_node(other))
+			addr = ""
+			if (not edge):
+				raise Exception("Error parsing ", command)
+			if (edge.node1.name == at):
+				# print(edge.node1.intfs_addr)
+				addr = edge.node1.name + "-" + str(edge.port1)
+			elif (edge.node2.name == at):
+				# print(edge.node2.intfs_addr)
+				addr = edge.node2.name + "-" + str(edge.port2)
+			else:
+				raise Exception("Error parsing ", command)
+			# Substitute edge interface
+			command = command.replace(data, addr)
+
+		# find ip addresses
+		for node_name in to_be_replaced:
+			node = self.get_node(re.sub(r'-[\d]+$', '', node_name.replace("/", "")))
+			# No node with this name ...
+			if not node:
+				continue
+
+			# Choose either interface address or node address
+			if re.search(r'-[\d]+$', node_name):
+				interface_number = re.findall(r'-[\d]+$', node_name)[-1][1:]
+				addr = node.intfs_addr[int(interface_number)]
+			else:
+				addr = node.addr
+			# If tailing / is given, include netmask, else skip
+			if (node_name.find('/') == -1):
+				command = command.replace("{" + node_name + "}", re.sub(r'/[\d]+', '', addr))
+			else:
+				command = command.replace("{" + node_name + "}", addr)
+		return command
 
 	def get_edges(self, node1, node2):
 		res = []
@@ -268,6 +376,6 @@ class Topo(object):
 	def compute(self):
 		cnt = 0
 		for n in self.nodes:
-			print '# Running dijkstra for node %s (%d/%d)' % (n.name, cnt+1, len(self.nodes))
+			print ('# Running dijkstra for node %s (%d/%d)' % (n.name, cnt+1, len(self.nodes)))
 			self.compute_node(n)
 			cnt += 1

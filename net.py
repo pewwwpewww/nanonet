@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 from addr import *
-from route import *
-import socket, os, sys
+import socket, sys
 import pickle
 
+# Main class which creates the Shell commands
 class Nanonet(object):
 	def __init__(self, topo, linknet=None, loopnet=None):
 		self.topo = topo
@@ -19,6 +19,8 @@ class Nanonet(object):
 		self.linknet = linknet
 		self.loopnet = loopnet
 
+	# Load a serialized python object
+	# Currently not used.
 	@staticmethod
 	def load(fname):
 		f = open(fname, 'r')
@@ -26,6 +28,7 @@ class Nanonet(object):
 		f.close()
 		return obj
 
+	# Assign the IPs to the interfaces (both node loopbacks and edge loopbacks)
 	def assign(self):
 		for e in self.topo.edges:
 			enet = self.linknet.next_net()
@@ -40,36 +43,49 @@ class Nanonet(object):
 #			print e.port2
 #			print 'For port1 %d and port2 %d' % (e.port1, e.port2)
 
-			e.node1.intfs_addr[e.port1] = socket.inet_ntop(socket.AF_INET6, str(a1))+'/'+str(self.linknet.submask)
-			e.node2.intfs_addr[e.port2] = socket.inet_ntop(socket.AF_INET6, str(a2))+'/'+str(self.linknet.submask)
+			e.node1.intfs_addr[e.port1] = socket.inet_ntop(socket.AF_INET6, a1)+'/'+str(self.linknet.submask)
+			e.node2.intfs_addr[e.port2] = socket.inet_ntop(socket.AF_INET6, a2)+'/'+str(self.linknet.submask)
 
 		for n in self.topo.nodes:
 			enet = self.loopnet.next_net()
 			enet[-1] = 1
 
-			n.addr = socket.inet_ntop(socket.AF_INET6, str(enet))+'/'+str(self.loopnet.submask)
+			n.addr = socket.inet_ntop(socket.AF_INET6, enet)+'/'+str(self.loopnet.submask)
 
+	# Start algorithm
+	# Builds the topology, runs Dijkstra and
 	def start(self, netname=None):
-		print '# Building topology...'
+		print ('# Building topology...')
 		self.topo.build()
-		print '# Assigning prefixes...'
+		print ('# Assigning prefixes...')
 		self.assign()
 
-		print '# Running dijkstra... (%d nodes)' % len(self.topo.nodes)
+		print ('# Running dijkstra... (%d nodes)' % len(self.topo.nodes))
 		self.topo.compute()
 
+		# Allows also accessing the routing information.
+		self.topo.dijkstra_computed()
+
+		# Serialize into file
+		# Currently not used.
 		if netname is not None:
 			f = open(netname, 'w')
 			pickle.dump(self, f)
 			f.close()
 
+	# Currently not used.
 	def call(self, cmd):
 		sys.stdout.write('%s\n' % cmd)
 
-	def dump_commands(self, wr=(lambda x: self.call(x)), noroute=False):
+	# Generate the Shell commands.
+	# Note: Removed default parameter from wr
+	def dump_commands(self, write_lambda, noroute=False):
 		host_cmd = []
 		node_cmd = {}
 
+		write_lambda("%s" % self.bash_query())
+
+		# Create network namespace for each node
 		for n in self.topo.nodes:
 			host_cmd.append('ip netns add %s' % n.name)
 			node_cmd[n] = []
@@ -78,6 +94,7 @@ class Nanonet(object):
 			node_cmd[n].append('sysctl net.ipv6.conf.all.forwarding=1')
 			node_cmd[n].append('sysctl net.ipv6.conf.all.seg6_enabled=1')
 
+		# Connect together the namespaces, create the links etc.
 		for e in self.topo.edges:
 			dev1 = '%s-%d' % (e.node1.name, e.port1)
 			dev2 = '%s-%d' % (e.node2.name, e.port2)
@@ -103,6 +120,7 @@ class Nanonet(object):
 					node_cmd[e.node1].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay))
 					node_cmd[e.node2].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay))
 
+		# Create routes between the namespaces
 		if not noroute:
 			for n in self.topo.nodes:
 				for dst in n.routes.keys():
@@ -117,12 +135,76 @@ class Nanonet(object):
 							allnh += 'nexthop via %s weight 1 ' % (r.nh)
 						node_cmd[n].append('ip -6 ro ad %s metric %d src %s %s' % (r.dst, r.cost, laddr, allnh))
 
+		# Add additional commands per node
+		for n in self.topo.nodes:
+			for c in self.topo.get_node(n.name).additional_commands:
+				command = self.topo.process_strings(c)
+				node_cmd[n].append(command)
+
+		# Write host commands line per line
 		for c in host_cmd:
-			wr('%s' % c)
+			write_lambda('%s' % c)
 
+		# Print one command per line instead of all in one line
 		for n in node_cmd.keys():
-			wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
+			write_lambda('')
+			write_lambda(f'# Commands for namespace {n.name}')
+			for cmds in node_cmd[n]:
+				write_lambda('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
+			#wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
+
+	def bash_query(self):
+		IFCMD = "if [ \"$1\" == \"%s\" ]; then echo %s ; fi ; "
+		output = ""
+		output += 'if [ "$1" == "--query" ]; then shift; '
+		for n1 in self.topo.nodes:
+			output += (IFCMD % (n1.name, self.topo.process_strings("{" + n1.name + "}")))
+			for n2 in self.topo.nodes:
+				if n1.name == n2.name:
+					continue
+
+				# Try catch because throws an exception if nodes are not adjacent
+				try:
+					output += (IFCMD % ("ifname ("+n1.name+","+n2.name+") at "+n1.name,
+										self.topo.process_strings("{ifname ("+n1.name+","+n2.name+") at "+n1.name+"}")))
+				except:
+					pass
+				try:
+					output += (IFCMD % ("ifname (" + n1.name + "," + n2.name + ") at " + n2.name,
+										self.topo.process_strings("{ifname ("+n1.name+","+n2.name+") at "+n2.name+"}")))
+				except:
+					pass
+				try:
+					output += (IFCMD % ("edge (" + n1.name + "," + n2.name + ") at " + n1.name,
+										self.topo.process_strings("{edge (" + n1.name + "," + n2.name + ") at " + n1.name + "}")))
+				except:
+					pass
+				try:
+					output += (IFCMD % ("edge (" + n1.name + "," + n2.name + ") at " + n2.name,
+										self.topo.process_strings("{edge (" + n1.name + "," + n2.name + ") at " + n2.name + "}")))
+				except:
+					pass
+
+		output += "exit; fi\n"
+
+		# Remove namespaces with "--stop" option
+		output += "if [ \"$1\" == \"--stop\" ]; then "
+
+		# Stop all processes of the namespace and remove the namespace itself
+		for namespace in self.topo.nodes:
+			if self.topo.throughput_enabled:
+				output += f"ip netns exec {namespace.name} bash -c '`dirname $0`/throughput.py -e -i {namespace.name}.throughput.json -o {namespace.name}.throughput.json' ; "
+			output += f"ip netns pids {namespace.name} | xargs kill -9 ; "
+			output += f"ip netns del {namespace.name} ; "
+		output += " exit ; "
+		output += " fi \n"
+		output += "set -x \n\n"
+
+		return output
+
+	# Remove some routes (TODO: why???)
+	# Currently not used.
 	def igp_prepare_link_down(self, name1, name2):
 		t = self.topo.copy()
 
@@ -156,6 +238,8 @@ class Nanonet(object):
 #			for r in chg_routes[n]:
 #				print '# %s via %s metric %d' % (r.dst, r.nh, r.cost)
 
+	# Remove some routes (TODO: why???)
+	# Currently not used.
 	def igp_apply_link_down(self, edge, rm_routes, chg_routes, timer=50):
 		n1, n2 = edge.node1, edge.node2
 
