@@ -57,6 +57,12 @@ class Edge(object):
 		self.cost = cost
 		self.delay = delay
 		self.bw = bw
+		# Commands that are executed when the link is restarted again.
+		# They are written in a tuple, as (node,cmd)
+		self.restart_commands = []
+
+	def add_restart_command(self, node, cmd, mode='up'):
+		self.restart_commands.append((node, cmd, mode))
 
 class Topo(object):
 	def __init__(self):

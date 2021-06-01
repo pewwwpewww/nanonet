@@ -199,6 +199,27 @@ class Nanonet(object):
 			output += f"ip netns del {namespace.name} ; "
 		output += " exit ; "
 		output += " fi \n"
+
+		# ifdown and ifup
+		# Syntax:
+		# --link "edge (R1,R2)" {down,up}
+		# will then execute "ifconfig {R1-X,R2-X} {down,up}" at the respective namespace
+		output += 'if [ "$1" == "--link" ]; then shift; '
+		output += "if false; then :; "
+		for node1 in self.topo.nodes:
+			for node2 in self.topo.nodes:
+				if node1.name != node2.name:
+					edge = self.topo.get_minimal_edge(node1, node2)
+					if (not edge):
+						continue
+					output += f' elif [ "$1" == "edge({node1.name},{node2.name})" ]; then '
+					output += f' ip netns exec {edge.node1.name} bash -c "ifconfig {edge.node1.name}-{edge.port2} $2 " ; '
+					output += f' ip netns exec {edge.node2.name} bash -c "ifconfig {edge.node2.name}-{edge.port2} $2 " ; '
+					for (node,cmd,mode) in edge.restart_commands:
+						output += f" if [ $2 == '{mode}' ]; then ip netns exec {node} bash -c '{self.topo.process_strings(cmd)}'; fi ; "
+		output += " fi;  exit; "
+		output += " fi \n"
+
 		output += "set -x \n\n"
 
 		return output
