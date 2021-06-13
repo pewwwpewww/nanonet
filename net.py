@@ -89,10 +89,10 @@ class Nanonet(object):
 		for n in self.topo.nodes:
 			host_cmd.append('ip netns add %s' % n.name)
 			node_cmd[n] = []
-			node_cmd[n].append('ifconfig lo up')
-			node_cmd[n].append('ip -6 ad ad %s dev lo' % n.addr)
-			node_cmd[n].append('sysctl net.ipv6.conf.all.forwarding=1')
-			node_cmd[n].append('sysctl net.ipv6.conf.all.seg6_enabled=1')
+			node_cmd[n].append(('ifconfig lo up', False))
+			node_cmd[n].append(('ip -6 ad ad %s dev lo' % n.addr, False))
+			node_cmd[n].append(('sysctl net.ipv6.conf.all.forwarding=1', False))
+			node_cmd[n].append(('sysctl net.ipv6.conf.all.seg6_enabled=1', False))
 
 		# Connect together the namespaces, create the links etc.
 		for e in self.topo.edges:
@@ -102,23 +102,23 @@ class Nanonet(object):
 			host_cmd.append('ip link add name %s type veth peer name %s' % (dev1, dev2))
 			host_cmd.append('ip link set %s netns %s' % (dev1, e.node1.name))
 			host_cmd.append('ip link set %s netns %s' % (dev2, e.node2.name))
-			node_cmd[e.node1].append('ifconfig %s add %s up' % (dev1, e.node1.intfs_addr[e.port1]))
-			node_cmd[e.node1].append('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev1))
-			node_cmd[e.node2].append('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]))
-			node_cmd[e.node2].append('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev2))
+			node_cmd[e.node1].append(('ifconfig %s add %s up' % (dev1, e.node1.intfs_addr[e.port1]), False))
+			node_cmd[e.node1].append(('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev1), False))
+			node_cmd[e.node2].append(('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]), False))
+			node_cmd[e.node2].append(('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev2), False))
 			if e.delay > 0 and e.bw == 0:
-				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay))
-				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay))
+				node_cmd[e.node1].append(('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay), False))
+				node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay), False))
 			elif e.bw > 0:
-				node_cmd[e.node1].append('tc qdisc add dev %s root handle 1: htb' % (dev1))
-				node_cmd[e.node1].append('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev1, e.bw, e.bw))
-				node_cmd[e.node1].append('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev1))
-				node_cmd[e.node2].append('tc qdisc add dev %s root handle 1: htb' % (dev2))
-				node_cmd[e.node2].append('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev2, e.bw, e.bw))
-				node_cmd[e.node2].append('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev2))
+				node_cmd[e.node1].append(('tc qdisc add dev %s root handle 1: htb' % (dev1), False))
+				node_cmd[e.node1].append(('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev1, e.bw, e.bw), False))
+				node_cmd[e.node1].append(('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev1), False))
+				node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: htb' % (dev2), False))
+				node_cmd[e.node2].append(('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev2, e.bw, e.bw), False))
+				node_cmd[e.node2].append(('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev2), False))
 				if e.delay > 0:
-					node_cmd[e.node1].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay))
-					node_cmd[e.node2].append('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay))
+					node_cmd[e.node1].append(('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay), False))
+					node_cmd[e.node2].append(('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay), False))
 
 		# Create routes between the namespaces
 		if not noroute:
@@ -128,18 +128,18 @@ class Nanonet(object):
 					laddr = n.addr.split('/')[0]
 					if len(rts) == 1:
 						r = rts[0]
-						node_cmd[n].append('ip -6 ro ad %s via %s metric %d src %s' % (r.dst, r.nh, r.cost, laddr))
+						node_cmd[n].append(('ip -6 ro ad %s via %s metric %d src %s' % (r.dst, r.nh, r.cost, laddr), False))
 					else:
 						allnh = ''
 						for r in rts:
 							allnh += 'nexthop via %s weight 1 ' % (r.nh)
-						node_cmd[n].append('ip -6 ro ad %s metric %d src %s %s' % (r.dst, r.cost, laddr, allnh))
+						node_cmd[n].append(('ip -6 ro ad %s metric %d src %s %s' % (r.dst, r.cost, laddr, allnh), False))
 
 		# Add additional commands per node
 		for n in self.topo.nodes:
 			for c in self.topo.get_node(n.name).additional_commands:
-				command = self.topo.process_strings(c)
-				node_cmd[n].append(command)
+				command = self.topo.process_strings(c[0])
+				node_cmd[n].append((command, c[1]))
 
 		# Write host commands line per line
 		for c in host_cmd:
@@ -150,13 +150,17 @@ class Nanonet(object):
 			write_lambda('')
 			write_lambda(f'# Commands for namespace {n.name}')
 			for cmds in node_cmd[n]:
-				write_lambda('ip netns exec %s bash -c \'%s\'' % (n.name, cmds))
+				if not cmds[1]:
+					write_lambda('ip netns exec %s bash -c \'%s\'' % (n.name, cmds[0]))
+				else:
+					write_lambda('ip netns exec %s bash -c \"%s\"' % (n.name, cmds[0]))
 			#wr('ip netns exec %s bash -c \'%s\'' % (n.name, "; ".join(node_cmd[n])))
 
 
 	def bash_query(self):
 		IFCMD = "if [ \"$1\" == \"%s\" ]; then echo %s ; fi ; "
 		output = ""
+		output += 'PYTHON_CURR_DIR=`dirname $0`\n'
 		output += 'if [ "$1" == "--query" ]; then shift; '
 		for n1 in self.topo.nodes:
 			output += (IFCMD % (n1.name, self.topo.process_strings("{" + n1.name + "}")))
@@ -191,10 +195,13 @@ class Nanonet(object):
 		# Remove namespaces with "--stop" option
 		output += "if [ \"$1\" == \"--stop\" ]; then "
 
+		# Stop throughput
+		if self.topo.throughput_enabled:
+			for namespace in self.topo.nodes:
+				output += f'ip netns exec {namespace.name} bash -c "${{PYTHON_CURR_DIR}}/throughput.py -e -i {namespace.name}.throughput.json -o {namespace.name}.throughput.json" ; '
+
 		# Stop all processes of the namespace and remove the namespace itself
 		for namespace in self.topo.nodes:
-			if self.topo.throughput_enabled:
-				output += f"ip netns exec {namespace.name} bash -c '`dirname $0`/throughput.py -e -i {namespace.name}.throughput.json -o {namespace.name}.throughput.json' ; "
 			output += f"ip netns pids {namespace.name} | xargs kill -9 ; "
 			output += f"ip netns del {namespace.name} ; "
 		output += " exit ; "

@@ -39,8 +39,8 @@ class Node(object):
 		return self.intfs_addr[intf].split("/")[0]
 
 	# Add an additional command
-	def add_command(self, command):
-		self.additional_commands.append(command)
+	def add_command(self, command, eval=False):
+		self.additional_commands.append((command, eval))
 
 	def __hash__(self):
 		return self.name.__hash__()
@@ -58,7 +58,7 @@ class Edge(object):
 		self.delay = delay
 		self.bw = bw
 		# Commands that are executed when the link is restarted again.
-		# They are written in a tuple, as (node,cmd)
+		# They are written in a tuple, as (node,cmd,mode)
 		self.restart_commands = []
 
 	def add_restart_command(self, node, cmd, mode='up'):
@@ -131,16 +131,16 @@ class Topo(object):
 		return self.add_link(self.get_node(name1), self.get_node(name2), *args, **kwargs)
 
 	# Add a custom command
-	def add_command(self, node, command):
+	def add_command(self, node, command, eval=False):
 		lnode = self.get_node(node)
 		if(lnode is not None):
-			lnode.add_command(command)
+			lnode.add_command(command, eval=eval)
 
 	# Throughput starting
 	# NOTE: Ending must be done separately.
 	def enable_throughput(self):
 		for n in self.nodes:
-			self.add_command(n.name, f"`dirname $0`/throughput.py -o {n.name}.throughput.json -s")
+			self.add_command(n.name, f"${{PYTHON_CURR_DIR}}/throughput.py -o {n.name}.throughput.json -s", eval=True)
 		self.throughput_enabled = True
 
 	# Return dijkstra route from src to dst
