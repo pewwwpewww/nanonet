@@ -2,7 +2,9 @@
 
 import json
 import math
+import subprocess
 from sys import stderr, argv, exit
+from os import path
 
 # Factors for align the comma values of the JSON file
 WEIGHT_FACTOR   =   1000
@@ -12,6 +14,9 @@ DEMAND_FACTOR   = 10000000
 if CAPACITY_FACTOR != DEMAND_FACTOR:
     stderr.write("WARNING: CAPACITY_FACTOR does not match DEMAND_FACTOR!")
 
+# Number of streams that are started. These streams are hashed individually.
+NSTREAMS =  32
+TIME     = 300
 
 
 # CONVERT TO OCTAVE function
@@ -29,6 +34,74 @@ if len(argv) >= 2 and argv[1] == "--octave":
 
     exit(0)
 # END CONVERT TO OCTAVE function
+
+
+# GET MAXIMUM
+if len(argv) >= 2 and argv[1] == "--getutilization":
+
+    json_filename = ""
+    script_filename = ""
+    if len(argv) == 4:
+        json_filename = argv[2]
+        script_filename = argv[3]
+    else:
+        print("Usage: ./thomas.py json_filename.json script_filename.topo.sh")
+        exit(1)
+    # Parse JSON file
+    data = dict()
+    with open(json_filename) as json_file:
+        data = json.load(json_file)
+
+    dirname = "./"
+    if( json_filename != "/dev/stdin" ):
+        dirname = path.dirname(json_filename) + "/"
+
+    for demand in data["demands"]:
+        flow_filename = dirname + f'flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt.csv'
+        try:
+            sum = 0.0
+            with open(flow_filename) as csvfile:
+                line = csvfile.readline()
+                if not line:
+                    break
+                sum += float(line.split(',')[3])
+                pass
+            print(f'SUM({demand["index"]},{demand["src"]},{demand["dst"]}) = {sum}')
+            print(f'ORIG({demand["index"]},{demand["src"]},{demand["dst"]}) = {demand["demand_size"]*DEMAND_FACTOR}')
+            print(f'R({demand["index"]},{demand["src"]},{demand["dst"]}) = {demand["demand_size"]*DEMAND_FACTOR/ (sum*TIME)}')
+        except Exception:
+            # Ignore non-existing files
+            pass
+        pass
+        #print(f'D({demand["src"] + 1},{demand["dst"] + 1}) = {int(demand["demand_size"] * DEMAND_FACTOR)};')
+
+    for link in data["links"]:
+        # query interface names
+        process1 = subprocess.run(
+            ['bash',script_filename, '--query', f'ifname ({link["i"]},{link["j"]}) at {link["i"]}'],
+            stdout=subprocess.PIPE)
+        process2 = subprocess.run(
+            ['bash', script_filename, '--query', f'ifname ({link["i"]},{link["j"]}) at {link["j"]}'],
+            stdout=subprocess.PIPE)
+        print(f'C({link["i"]},{link["j"]}) = {link["capacity"]}')
+        ifname1 = process1.stdout.strip().decode('ascii')
+        ifname2 = process2.stdout.strip().decode('ascii')
+
+        with \
+                open(dirname+f'{link["i"]}.throughput.json') as throughputfile1, \
+                open(dirname+f'{link["j"]}.throughput.json') as throughputfile2:
+            throughput1 = json.load(throughputfile1)
+            throughput2 = json.load(throughputfile2)
+            # Get throughput; if not exists, write -1
+            print(f"T({link['i']},{link['j']}) = "
+                  f"({throughput1.get(ifname1,dict()).get('recv_bytes',-1)},"
+                  f"{throughput2.get(ifname2,dict()).get('recv_bytes',-1)})")
+
+            print(f"S({link['i']},{link['j']}) = {(throughput1.get(ifname1,dict()).get('recv_bytes',0)/10**6)/(TIME*link['capacity'])}")
+        pass
+
+    exit(0)
+# END
 
 
 filename = "/dev/stdin"
@@ -120,7 +193,7 @@ f"""\
 for demand in data["demands"]:
     output += \
 f"""\
-        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T300 -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} {{{demand["dst"]}}} \>\>flow-{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
+        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
 """
 
 output += """
