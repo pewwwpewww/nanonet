@@ -49,7 +49,7 @@ class Node(object):
 		return self.name == o.name
 
 class Edge(object):
-	def __init__(self, node1, node2, port1, port2, cost, delay, bw):
+	def __init__(self, node1, node2, port1, port2, cost, delay, bw, directed=False):
 		self.node1 = node1
 		self.node2 = node2
 		self.port1 = port1
@@ -60,6 +60,8 @@ class Edge(object):
 		# Commands that are executed when the link is restarted again.
 		# They are written in a tuple, as (node,cmd,mode)
 		self.restart_commands = []
+		# If the edge is directed of not
+		self.directed = directed
 
 	def add_restart_command(self, node, cmd, mode='up'):
 		self.restart_commands.append((node, cmd, mode))
@@ -111,7 +113,7 @@ class Topo(object):
 
 		return None
 
-	def add_link(self, node1, node2, port1=None, port2=None, cost=1, delay=None, bw=None):
+	def add_link(self, node1, node2, port1=None, port2=None, cost=1, delay=None, bw=None, directed=False):
 		if port1 is None:
 			port1 = node1.new_intf()
 		if port2 is None:
@@ -123,7 +125,7 @@ class Topo(object):
 		if delay is None:
 			delay = random.uniform(self.dmin, self.dmax)
 
-		e = Edge(node1, node2, port1, port2, int(cost), delay, bw)
+		e = Edge(node1, node2, port1, port2, int(cost), delay, bw, directed)
 		self.edges.append(e)
 		return e
 
@@ -229,7 +231,7 @@ class Topo(object):
 		res = []
 
 		for e in self.edges:
-			if e.node1 == node1 and e.node2 == node2 or e.node1 == node2 and e.node2 == node1:
+			if e.node1 == node1 and e.node2 == node2 or not e.directed and e.node1 == node2 and e.node2 == node1:
 				res.append(e)
 
 		return res
@@ -266,7 +268,7 @@ class Topo(object):
 		for e in self.edges:
 			if e.node1 == node1:
 				res.add(e.node2)
-			elif e.node2 == node1:
+			elif not e.directed and e.node2 == node1:
 				res.add(e.node1)
 
 		return res
