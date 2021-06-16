@@ -114,10 +114,19 @@ class Topo(object):
 		return None
 
 	def add_link(self, node1, node2, port1=None, port2=None, cost=1, delay=None, bw=None, directed=False):
+		# If the edges are directed, the interface names should be the same
+		# so, query for the interface names ...
+		existing_edge = list(filter( lambda e: e.node1 == node2 and e.node2 == node1, self.edges))
 		if port1 is None:
-			port1 = node1.new_intf()
+			if existing_edge:
+				port1 = existing_edge[0].port2
+			else:
+				port1 = node1.new_intf()
 		if port2 is None:
-			port2 = node2.new_intf()
+			if existing_edge:
+				port2 = existing_edge[0].port1
+			else:
+				port2 = node2.new_intf()
 
 		node1.add_intf(port1)
 		node2.add_intf(port2)
