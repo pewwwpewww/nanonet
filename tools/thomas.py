@@ -143,6 +143,7 @@ f"""\
         self.add_node("{n}")
 """
 
+"""
 # Make edges unidirectional
 # as required from nanonet
 for edge1 in data["links"]:
@@ -154,11 +155,12 @@ for edge1 in data["links"]:
             if(round(edge1["weight"]) != round(edge2["weight"]) or edge1["capacity"] != edge2["capacity"]):
                 raise Exception(f'Wrong input format -- link {edge1["i"]} -- {edge2["j"]} -- properties differ.')
             data["links"].remove(edge2)
+"""
 
 for edge in data["links"]:
     output += \
 f"""\
-        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*WEIGHT_FACTOR)}, delay=0.2, bw={edge["capacity"]*CAPACITY_FACTOR})
+        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*WEIGHT_FACTOR)}, delay=0.2, bw={edge["capacity"]*CAPACITY_FACTOR}, directed=True)
 """
 
 output += \
