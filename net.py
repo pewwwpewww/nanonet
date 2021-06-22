@@ -95,30 +95,47 @@ class Nanonet(object):
 			node_cmd[n].append(('sysctl net.ipv6.conf.all.seg6_enabled=1', False))
 
 		# Connect together the namespaces, create the links etc.
+		already_printed = []
 		for e in self.topo.edges:
 			dev1 = '%s-%d' % (e.node1.name, e.port1)
 			dev2 = '%s-%d' % (e.node2.name, e.port2)
 
-			host_cmd.append('ip link add name %s type veth peer name %s' % (dev1, dev2))
-			host_cmd.append('ip link set %s netns %s' % (dev1, e.node1.name))
-			host_cmd.append('ip link set %s netns %s' % (dev2, e.node2.name))
+			node_cmd[e.node1].append(('# Edge %s - %s' % (e.node1.name, e.node2.name), False))
+
+			# Configure links between the namespaces
+			# host commands must only be printed ONCE
+			# so check if the edge in the other direction has not been traversed
+			if not list(filter(lambda edge: e.node1 == edge.node2 and e.node2 == edge.node1, already_printed)):
+				host_cmd.append('ip link add name %s type veth peer name %s' % (dev1, dev2))
+				host_cmd.append('ip link set %s netns %s' % (dev1, e.node1.name))
+				host_cmd.append('ip link set %s netns %s' % (dev2, e.node2.name))
+			already_printed.append(e)
+
+			# Conficure interfaces
 			node_cmd[e.node1].append(('ifconfig %s add %s up' % (dev1, e.node1.intfs_addr[e.port1]), False))
 			node_cmd[e.node1].append(('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev1), False))
-			node_cmd[e.node2].append(('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]), False))
-			node_cmd[e.node2].append(('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev2), False))
+			if not e.directed:
+				node_cmd[e.node2].append(('ifconfig %s add %s up' % (dev2, e.node2.intfs_addr[e.port2]), False))
+				node_cmd[e.node2].append(('sysctl net.ipv6.conf.%s.seg6_enabled=1' % (dev2), False))
+
+			# Delay
 			if e.delay > 0 and e.bw == 0:
 				node_cmd[e.node1].append(('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev1, e.delay), False))
-				node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay), False))
+				if not e.directed:
+					node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: netem delay %.2fms' % (dev2, e.delay), False))
 			elif e.bw > 0:
+				# Bandwidth
 				node_cmd[e.node1].append(('tc qdisc add dev %s root handle 1: htb' % (dev1), False))
 				node_cmd[e.node1].append(('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev1, e.bw, e.bw), False))
 				node_cmd[e.node1].append(('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev1), False))
-				node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: htb' % (dev2), False))
-				node_cmd[e.node2].append(('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev2, e.bw, e.bw), False))
-				node_cmd[e.node2].append(('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev2), False))
+				if not e.directed:
+					node_cmd[e.node2].append(('tc qdisc add dev %s root handle 1: htb' % (dev2), False))
+					node_cmd[e.node2].append(('tc class add dev %s parent 1: classid 1:1 htb rate %dkbit ceil %dkbit' % (dev2, e.bw, e.bw), False))
+					node_cmd[e.node2].append(('tc filter add dev %s protocol ipv6 parent 1: prio 1 u32 match ip6 dst ::/0 flowid 1:1' % (dev2), False))
 				if e.delay > 0:
 					node_cmd[e.node1].append(('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev1, e.delay), False))
-					node_cmd[e.node2].append(('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay), False))
+					if not e.directed:
+						node_cmd[e.node2].append(('tc qdisc add dev %s parent 1:1 handle 10: netem delay %.2fms' % (dev2, e.delay), False))
 
 		# Create routes between the namespaces
 		if not noroute:
@@ -219,7 +236,7 @@ class Nanonet(object):
 					edge = self.topo.get_minimal_edge(node1, node2)
 					if (not edge):
 						continue
-					output += f' elif [ "$1" == "edge({node1.name},{node2.name})" ]; then '
+					output += f' elif [ "$1" == "edge ({node1.name},{node2.name})" ]; then '
 					output += f' ip netns exec {edge.node1.name} bash -c "ifconfig {edge.node1.name}-{edge.port1} $2 " ; '
 					output += f' ip netns exec {edge.node2.name} bash -c "ifconfig {edge.node2.name}-{edge.port2} $2 " ; '
 					for (node,cmd,mode) in edge.restart_commands:

@@ -7,12 +7,13 @@ from sys import stderr, argv, exit
 from os import path
 
 # Factors for align the comma values of the JSON file
+# Please note, that CAPACITY and DEMAND are both in KB.
 WEIGHT_FACTOR   =   1000
-CAPACITY_FACTOR = 10000000
-DEMAND_FACTOR   = 10000000
+CAPACITY_FACTOR = 1000000000000
+DEMAND_FACTOR   = 100000
 # Please note: CAPACITY_FACTOR and DEMAND_FACTOR should ALWAYS be the same value!!!
 if CAPACITY_FACTOR != DEMAND_FACTOR:
-    stderr.write("WARNING: CAPACITY_FACTOR does not match DEMAND_FACTOR!")
+    stderr.write("WARNING: CAPACITY_FACTOR does not match DEMAND_FACTOR!\n")
 
 # Number of streams that are started. These streams are hashed individually.
 NSTREAMS =  32
@@ -68,7 +69,7 @@ if len(argv) >= 2 and argv[1] == "--getutilization":
                 pass
             print(f'SUM({demand["index"]},{demand["src"]},{demand["dst"]}) = {sum}')
             print(f'ORIG({demand["index"]},{demand["src"]},{demand["dst"]}) = {demand["demand_size"]*DEMAND_FACTOR}')
-            print(f'R({demand["index"]},{demand["src"]},{demand["dst"]}) = {demand["demand_size"]*DEMAND_FACTOR/ (sum*TIME)}')
+            print(f'R({demand["index"]},{demand["src"]},{demand["dst"]}) = {sum / (demand["demand_size"]*DEMAND_FACTOR) * 10**4}')
         except Exception:
             # Ignore non-existing files
             pass
@@ -143,6 +144,7 @@ f"""\
         self.add_node("{n}")
 """
 
+"""
 # Make edges unidirectional
 # as required from nanonet
 for edge1 in data["links"]:
@@ -154,11 +156,12 @@ for edge1 in data["links"]:
             if(round(edge1["weight"]) != round(edge2["weight"]) or edge1["capacity"] != edge2["capacity"]):
                 raise Exception(f'Wrong input format -- link {edge1["i"]} -- {edge2["j"]} -- properties differ.')
             data["links"].remove(edge2)
+"""
 
 for edge in data["links"]:
     output += \
 f"""\
-        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*WEIGHT_FACTOR)}, delay=0.2, bw={edge["capacity"]*CAPACITY_FACTOR})
+        self.add_link_name("{edge["i"]}", "{edge["j"]}", cost={math.ceil(edge["weight"]*WEIGHT_FACTOR)}, delay=0.2, bw={edge["capacity"]*CAPACITY_FACTOR}, directed=True)
 """
 
 output += \
@@ -195,6 +198,14 @@ for demand in data["demands"]:
 f"""\
         self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
 """
+#    output += \
+#f"""\
+#        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
+#"""
+#    output += \
+#f"""\
+#        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -u -Ri{int(demand["demand_size"] * DEMAND_FACTOR)} -l1023 -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
+#"""
 
 output += """
         self.enable_throughput()
