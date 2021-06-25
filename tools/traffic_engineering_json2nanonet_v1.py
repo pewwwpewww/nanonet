@@ -46,7 +46,7 @@ if len(argv) >= 2 and argv[1] == "--getutilization":
         json_filename = argv[2]
         script_filename = argv[3]
     else:
-        print("Usage: ./thomas.py json_filename.json script_filename.topo.sh")
+        print("Usage: ./traffic_engineering_json2nanonet_v1.py json_filename.json script_filename.topo.sh")
         exit(1)
     # Parse JSON file
     data = dict()
@@ -198,14 +198,6 @@ for demand in data["demands"]:
 f"""\
         self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
 """
-#    output += \
-#f"""\
-#        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -R{int(demand["demand_size"]*DEMAND_FACTOR)} -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
-#"""
-#    output += \
-#f"""\
-#        self.add_command("{demand["src"]}", 'echo bash -c \\\\\\\"START=\\\\\\\\\\$SECONDS\; while \! ip netns exec {demand["src"]} nuttcp -T{TIME} -i1 -u -Ri{int(demand["demand_size"] * DEMAND_FACTOR)} -l1023 -N{NSTREAMS} {{{demand["dst"]}}} \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt 2\>\&1 \; do sleep 1\; echo RTY\: \\\\\\\\\\$SECONDS \>\>flow-{demand["index"]}_{demand["src"]}-{demand["dst"]}.txt\; done\\\\\\\" | at now+2min')
-#"""
 
 output += """
         self.enable_throughput()
