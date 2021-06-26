@@ -29,6 +29,7 @@ if len(argv) >= 3:
 
 nodes = []
 destination_nodes = []
+source_nodes = []
 
 # Parse JSON file
 with open(filename) as json_file:
@@ -48,10 +49,12 @@ for node in data["links"]:
     nodes.append(node["j"])
 nodes = list(set(nodes))
 
-# get destinations
+# get destinations and sources
 for node in data["demands"]:
     destination_nodes.append(node["dst"])
+    source_nodes.append(node["src"])
 destination_nodes = list(set(destination_nodes))
+source_nodes = list(set(source_nodes))
 
 for n in nodes:
     output += \
@@ -72,17 +75,30 @@ f"""\
 """
 # Create routes out of the demands
 for routes in data["demands"]:
-    route_cmd = f"""\"ip -6 route add {{{routes["dst"]}}} metric 1 src {{{routes["src"]}}} """
+    route_cmd = f"""f\"ip -6 route add {{{{{routes["dst"]}}}}} metric 1 table 1 src {{{{{routes["src"]}}}}} """
+    build_str = f"""build_str = \"\""""
     for seg in routes["waypoint_chance_map"]:
-        route_cmd += f""" nexthop via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(seg)}")[0].nh +\""""
+        build_str += f"""
+        nhlist = self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(seg)}")
+        for nh in nhlist:
+            build_str += f" nexthop via {{nh.nh}} \""""
+        #route_cmd += f""" nexthop via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(seg)}")[0].nh +\""""
         if str(seg) != str(routes['dst']):
-            route_cmd += f""" encap seg6 mode encap segs {{{str(seg)}}} """
-        route_cmd += f""" weight {int(routes["waypoint_chance_map"][str(seg)]*100)} """
-    route_cmd += "\""
+            build_str += f"""+" encap seg6 mode encap segs {{{str(seg)}}} \""""
+        build_str += f"""+ f" weight {{int({int(routes["waypoint_chance_map"][str(seg)]*100)}/len(nhlist))}} \""""
+    route_cmd += " {build_str}\""
     output += \
 f"""\
         # Demand from {routes["src"]} to {routes["dst"]}
+        {build_str}
         self.add_command("{routes["src"]}", {route_cmd})
+"""
+
+# Policy rule s.t. local traffic (possibly) uses segments but the other traffic does not.
+for demand in data['demands']:
+    output += \
+f"""\
+        self.add_command("{demand['src']}", "ip -6 rule add to {{{demand['dst']}/}} iif lo table 1")
 """
 
 # Start nuttcp at destination nodes
@@ -99,6 +115,11 @@ f"""\
 
 output += """
         self.enable_throughput()
+"""
+
+for n in nodes:
+    output += f"""\
+        self.add_command("{n}", "sysctl net.ipv6.fib_multipath_hash_policy=1")
 """
 
 output += f"""
