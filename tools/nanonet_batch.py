@@ -6,17 +6,33 @@ from shutil import copy2
 from sys import stdout, stderr, exit
 from time import sleep
 
-OUTPUT_FILE = '../batch_result.csv'
+OUTPUT_FILE = '../batch_result001.csv'
 
 class Tests:
 	def __init__(self):
-		self.TESTFILES = ["TE_Joint.topo.sh", "TE_Weight.topo.sh", "TE_Waypoints.topo.sh"]
+		#self.TESTFILES = ["TE_Joint.topo.sh", "TE_Weight.topo.sh", "TE_Waypoints.topo.sh"]
+		self.TESTFILES = ['SimpleJoint.topo.sh', 'SimpleWeights.topo.sh', 'SimpleWaypoints.topo.sh']
+		self.JSON_FILES = ['simple_JOINT_0.json', 'simple_WEIGHTS_0.json', 'simple_WAYPOINTS_0.json']
 		self.TEST_ID = 0
 		self.is_in_test = False
 		self.TIME = 300
 		self.DEMAND_FACTOR = 10000
 		self.BYTES_TO_KBITS = 125
-		self.CAPACITY = 100
+		self.CAPACITY = {}
+		self.MIN_NODE = 0
+		self.MAX_NODE = 4
+
+	def read_json(self, test_name : str):
+		json_filename = self.JSON_FILES[self.TESTFILES.index(test_name)]
+		with open('../' + json_filename) as json_file:
+			data = json.load(json_file)
+		links = data['links']
+		for e in links:
+			print(e['i'], e['j'])
+			if e['i'] not in self.CAPACITY:
+				self.CAPACITY[e['i']] = {}
+			self.CAPACITY[e['i']][e['j']] = e['capacity']
+
 
 	def create_test_case(self, test_name : str):
 		self.TEST_ID = self.TEST_ID + 1
@@ -78,14 +94,11 @@ class Tests:
 		chdir("..")
 		self.is_in_test = False
 
-	@staticmethod
-	def get_all_if_names(script_filename : str):
-		MIN_NODE = 0
-		MAX_NODE = 8
+	def get_all_if_names(self, script_filename : str):
 		interfaces = {}
 		# query interface names
-		for i in range(MIN_NODE,MAX_NODE+1):
-			for j in range(MIN_NODE,MAX_NODE+1):
+		for i in range(self.MIN_NODE,self.MAX_NODE+1):
+			for j in range(self.MIN_NODE,self.MAX_NODE+1):
 				process1 = run(
 					['bash', script_filename, '--query', f'ifname ({i},{j}) at {i}'],
 					stdout=PIPE)
@@ -98,10 +111,9 @@ class Tests:
 				interfaces[str(j) + "->" + str(i)] = ifname2
 		return interfaces
 
-	@staticmethod
-	def parse_throughput_files():
+	def parse_throughput_files(self):
 		array = []
-		for i in range(0,8+1):
+		for i in range(0,self.MAX_NODE+1):
 			with open(f'{i}.throughput.json') as throughputfile:
 				throughput1 = json.load(throughputfile)
 				array.append(throughput1)
@@ -112,8 +124,12 @@ class Tests:
 		for subarray in array:
 			for interface_throughput in subarray:
 				if interface_throughput in interfaces.values():
-					if subarray[interface_throughput]['recv_bytes']/(self.CAPACITY*self.TIME*self.DEMAND_FACTOR*self.BYTES_TO_KBITS) > max:
-						max = subarray[interface_throughput]['recv_bytes']/(self.CAPACITY*self.TIME*self.DEMAND_FACTOR*self.BYTES_TO_KBITS)
+					for i in range(0,self.MAX_NODE+1):
+						for j in range(0,self.MAX_NODE+1):
+							if interfaces[str(i)+'->'+str(j)] == interface_throughput:
+								capacity = self.CAPACITY[i][j]
+								if subarray[interface_throughput]['recv_bytes']/(capacity*self.TIME*self.DEMAND_FACTOR*self.BYTES_TO_KBITS) > max:
+									max = subarray[interface_throughput]['recv_bytes']/(capacity*self.TIME*self.DEMAND_FACTOR*self.BYTES_TO_KBITS)
 		return max
 
 	def get_results(self, test_name):
@@ -124,11 +140,22 @@ class Tests:
 
 
 tests = Tests()
+tests.TEST_ID = 99
 for i in range(1,101):
 	for script in tests.TESTFILES:
 		tests.create_test_case(script)
 		tests.run_test_case(script)
 		tests.finish_test_case(script)
+
+		#tests.TEST_ID = tests.TEST_ID + 1
+		#tests.is_in_test = True
+		# Create new folder
+		# Copy file there
+		#folder_name = str(tests.TEST_ID) + "_" + script
+		#chdir(folder_name)
+
+		tests.read_json(script)
+
 
 		max = str(tests.get_results(script))
 		print("MAX="+max)
