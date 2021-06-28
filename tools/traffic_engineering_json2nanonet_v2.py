@@ -84,7 +84,7 @@ for routes in data["demands"]:
             build_str += f" nexthop via {{nh.nh}} \""""
         #route_cmd += f""" nexthop via "+self.get_dijkstra_route_by_name("{str(routes["src"])}","{str(seg)}")[0].nh +\""""
         if str(seg) != str(routes['dst']):
-            build_str += f"""+" encap seg6 mode encap segs {{{str(seg)}}} \""""
+            build_str += f"""+" encap seg6 mode inline segs {{{str(seg)}}} \""""
         build_str += f"""+ f" weight {{int({int(routes["waypoint_chance_map"][str(seg)]*100)}/len(nhlist))}} \""""
     route_cmd += " {build_str}\""
     output += \
