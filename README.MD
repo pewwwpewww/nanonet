@@ -43,9 +43,9 @@ class MyTopology(Topo):
     # Overwriting the build method.
     # It is called before the IP addresses are assigned. Here, the nodes and links must be defined.
     # This overwrite is required.
-	def build(self):
+    def build(self):
         # If you want to disable the default route calculation (Dijkstra), you can set self.noroute to True
-		# self.noroute = False
+        # self.noroute = False
 
         # Add 3 nodes, called X, Y and Z
         self.add_node("X")
