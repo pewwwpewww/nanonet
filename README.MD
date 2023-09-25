@@ -21,6 +21,14 @@ Currently, we have tested the framework only with `python3.6`.
 
 * Linux (Kernel >=4.14) for running the scripts
 
+On newer versions of e.g. Debian you might have to install the following packages and modify the `PATH` variable as follows:
+
+```bash
+apt install net-tools
+apt install iproute2 # should already be installed
+PATH=$PATH:/sbin
+```
+
 ## General procedure
 0. Define the network topology in a `*.topo.py` file. (In some cases, these files can also be generated e.g. from JSON files.) Below, you can find an example of a topology file.
 0. Compile the topology from a Python script into a Shell script by using <br>
@@ -198,7 +206,7 @@ For example, to start a flow from client `X` to server `S1`, run it for 300 seco
 ip netns exec X bash -c "nuttcp -T300 -i1 `./<TOPOLOGY-NAME>.topo.sh --query S1`" >flow_X-S1.txt
 ```
 
-With our `nut2csv` tool, you can also convert the output of `nuttcp` to the CSV format. This makes it easier to process the data, e.g., with Python or other programming languages.
+With our [`nut2csv`](https://github.com/nikolaussuess/nut2csv) tool, you can also convert the output of `nuttcp` to the CSV format. This makes it easier to process the data, e.g., with Python or other programming languages.
 
 ### Start a shell on a virtual node
 To start a shell on the virtual node, simply call:
