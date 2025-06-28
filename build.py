@@ -38,6 +38,9 @@ for name, val in customs.items():
 	else:
 		globals()[name] = val
 
+print(f"Availbe keys: {topos.keys()}")
+
+print(f"requested: {sys.argv[2]}")
 topo = topos[sys.argv[2]]()
 
 os.chdir(outdir)
