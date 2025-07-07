@@ -1,0 +1,271 @@
+{
+  "demands": [
+    {
+      "src": 0,
+      "dst": 5,
+      "demand_size": 10.0,
+      "waypoint_chance_map": {
+        "1": 1.0
+      }
+    },
+    {
+      "src": 0,
+      "dst": 7,
+      "demand_size": 10.0,
+      "waypoint_chance_map": {
+        "3": 1.0
+      }
+    },
+    {
+      "src": 4,
+      "dst": 8,
+      "demand_size": 10.0,
+      "waypoint_chance_map": {
+        "7": 1.0
+      }
+    },
+    {
+      "src": 0,
+      "dst": 8,
+      "demand_size": 10.0,
+      "waypoint_chance_map": {
+        "7": 1.0
+      }
+    },
+    {
+      "src": 1,
+      "dst": 8,
+      "demand_size": 10.0,
+      "waypoint_chance_map": {
+        "7": 1.0
+      }
+    }
+  ],
+  "links": [
+    {
+      "i": 0,
+      "j": 3,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 3,
+      "j": 0,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 0,
+      "j": 1,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 1,
+      "j": 0,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 0,
+      "j": 4,
+      "capacity": 10,
+      "weight": 1.0,
+      "utilization": 1.0
+    },
+    {
+      "i": 4,
+      "j": 0,
+      "capacity": 10,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 1,
+      "j": 2,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 2,
+      "j": 1,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 1,
+      "j": 4,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 4,
+      "j": 1,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 1,
+      "j": 5,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 5,
+      "j": 1,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 2,
+      "j": 5,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 5,
+      "j": 2,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 3,
+      "j": 6,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 6,
+      "j": 3,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 3,
+      "j": 4,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 4,
+      "j": 3,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 3,
+      "j": 7,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 7,
+      "j": 3,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 4,
+      "j": 5,
+      "capacity": 15,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 5,
+      "j": 4,
+      "capacity": 15,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 4,
+      "j": 8,
+      "capacity": 10,
+      "weight": 1.0,
+      "utilization": 2.0
+    },
+    {
+      "i": 8,
+      "j": 4,
+      "capacity": 10,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 4,
+      "j": 7,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 7,
+      "j": 4,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 5,
+      "j": 8,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 8,
+      "j": 5,
+      "capacity": 80,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 6,
+      "j": 7,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 7,
+      "j": 6,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    },
+    {
+      "i": 7,
+      "j": 8,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.1
+    },
+    {
+      "i": 8,
+      "j": 7,
+      "capacity": 100,
+      "weight": 1.0,
+      "utilization": 0.0
+    }
+  ],
+  "max_link_utilization": 1.5
+}
